@@ -1,0 +1,35 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  color: #183223;
+}
+
+.jo-login-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at top left, rgba(224, 199, 122, 0.36), transparent 28%),
+    linear-gradient(135deg, #f2ebdb 0%, #efe7d5 42%, #dfe7d6 100%);
+}
+
+.jo-login-card {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-radius: 20px;
+  background: rgba(255, 251, 244, 0.88);
+  box-shadow: 0 16px 48px rgba(24, 50, 35, 0.1);
+
+  &__title {
+    margin: 0;
+    font-size: 1.8rem;
+  }
+}
+
+.jo-field-error {
+  color: #8c3b2f;
+  font-size: 0.8125rem;
+}

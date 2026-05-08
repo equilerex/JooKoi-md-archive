@@ -1,0 +1,147 @@
+<div class="jo-shell">
+  <aside class="jo-sidebar">
+    <div class="jo-sidebar__header">
+      <div>
+        <p class="jo-eyebrow">POC</p>
+        <h1 class="jo-sidebar__title">Knowledge Files</h1>
+      </div>
+      <p class="jo-text--muted">SQLite-backed markdown snippets in a virtual folder tree.</p>
+    </div>
+
+    <div class="jo-toolbar">
+      <button type="button" class="jo-btn" (click)="createFolder()">New folder</button>
+      <button type="button" class="jo-btn" (click)="createDocument()">New .md</button>
+      <button type="button" class="jo-btn" (click)="moveSelected()" [disabled]="!selectedNodeId()">
+        Move
+      </button>
+      <button type="button" class="jo-btn" (click)="renameSelected()" [disabled]="!selectedNodeId()">
+        Rename
+      </button>
+      <button
+        type="button"
+        class="jo-btn jo-btn--danger"
+        (click)="deleteSelected()"
+        [disabled]="!selectedNodeId()"
+      >
+        Delete
+      </button>
+      <button type="button" class="jo-btn" (click)="logout()">Log out</button>
+    </div>
+
+    <label class="jo-search">
+      <span>Search</span>
+      <input
+        class="jo-search__input"
+        type="search"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event); runSearch()"
+        placeholder="Search titles or markdown text"
+      />
+    </label>
+
+    <div class="jo-tree-panel">
+      @if (treeStore.loading()) {
+        <p class="jo-empty-state">Loading folders...</p>
+      }
+      @if (treeStore.error()) {
+        <p class="jo-empty-state jo-empty-state--error">{{ treeStore.error() }}</p>
+      }
+      @if (treeStore.isEmpty()) {
+        <p class="jo-empty-state">No folders or notes yet.</p>
+      }
+
+      @for (node of treeStore.visibleTree(); track node.id) {
+        <jo-tree-node
+          [node]="node"
+          [selectedId]="selectedNodeId()"
+          (select)="handleNodeSelection($event)"
+          (toggle)="toggleFolder($event.id)"
+        />
+      }
+    </div>
+  </aside>
+
+  <main class="jo-editor">
+    <div class="jo-editor__header no-print">
+      <div>
+        <p class="jo-eyebrow">Editor</p>
+        <h2 class="jo-editor__title">
+          @if (isDirty()) {
+            <span class="jo-editor__unsaved-badge">Unsaved</span>
+          }
+          {{ selectedDocument()?.name || 'Select a markdown file' }}
+        </h2>
+      </div>
+      <div class="jo-editor__actions">
+        <button
+          mat-raised-button
+          color="primary"
+          (click)="saveDocument()"
+          [disabled]="!selectedDocument() || !isDirty() || saving()"
+        >
+          <mat-icon>save</mat-icon>
+          {{ saving() ? 'Saving...' : 'Save' }}
+        </button>
+
+        <button mat-button (click)="printContent()">
+          <mat-icon>print</mat-icon>
+          Print/PDF
+        </button>
+      </div>
+    </div>
+
+    @if (breadcrumbs().length > 0) {
+      <nav class="jo-breadcrumbs no-print" aria-label="breadcrumb">
+        <ol class="jo-breadcrumb-list">
+          @for (crumb of breadcrumbs(); track crumb.name; let last = $last) {
+            <li class="jo-breadcrumb-item">
+              @if (crumb.kind === 'home') {
+                <mat-icon class="jo-breadcrumb-icon">home</mat-icon>
+              }
+              @if (crumb.kind === 'folder') {
+                <mat-icon class="jo-breadcrumb-icon">folder</mat-icon>
+              }
+              @if (crumb.kind === 'document') {
+                <mat-icon class="jo-breadcrumb-icon">description</mat-icon>
+              }
+              <span [class.jo-breadcrumb-current]="last">{{ crumb.name }}</span>
+              @if (!last) {
+                <mat-icon class="jo-breadcrumb-separator">chevron_right</mat-icon>
+              }
+            </li>
+          }
+        </ol>
+      </nav>
+    }
+
+    @if (pageError()) {
+      <p class="jo-alert jo-alert--error">{{ pageError() }}</p>
+    }
+
+    <div class="jo-editor__panes">
+      <div class="jo-editor__pane jo-editor__pane--input">
+        <textarea
+          class="jo-editor__textarea"
+          [ngModel]="draftContent()"
+          (ngModelChange)="draftContent.set($event)"
+          [disabled]="!selectedDocument() || documentLoading()"
+          placeholder="Open or create a .md file to start writing."
+        ></textarea>
+      </div>
+      <div class="jo-editor__pane jo-editor__pane--preview">
+        <div
+          #renderedContainer
+          class="jo-editor__rendered markdown-content prose"
+          [innerHTML]="renderedContent()"
+        ></div>
+      </div>
+    </div>
+
+    @if (selectedDocument(); as doc) {
+      <div class="jo-editor__meta">
+        <span>Updated {{ doc.updatedAt | date: 'medium' }}</span>
+        <span>{{ draftContent().length }} characters</span>
+      </div>
+    }
+  </main>
+</div>

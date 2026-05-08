@@ -1,0 +1,43 @@
+<div class="jo-login-shell">
+  <form class="jo-login-card" (submit)="login($event)">
+    <div>
+      <p class="jo-eyebrow">Access</p>
+      <h1 class="jo-login-card__title">Knowledge Files</h1>
+      <p class="jo-text--muted">Sign in to view the notes tree.</p>
+    </div>
+
+    <label class="jo-search">
+      <span class="jo-search__label">Username</span>
+      <input
+        class="jo-search__input"
+        type="text"
+        autocomplete="username"
+        [formField]="loginForm.username"
+      />
+      @if (loginForm.username().touched() && usernameError()) {
+        <span class="jo-field-error">{{ usernameError() }}</span>
+      }
+    </label>
+
+    <label class="jo-search">
+      <span class="jo-search__label">Password</span>
+      <input
+        class="jo-search__input"
+        type="password"
+        autocomplete="current-password"
+        [formField]="loginForm.password"
+      />
+      @if (loginForm.password().touched() && passwordError()) {
+        <span class="jo-field-error">{{ passwordError() }}</span>
+      }
+    </label>
+
+    @if (loginError()) {
+      <p class="jo-alert jo-alert--error">{{ loginError() }}</p>
+    }
+
+    <button type="submit" class="jo-btn" [disabled]="loginForm().invalid() || loginSubmitting()">
+      {{ loginSubmitting() ? 'Signing in...' : 'Sign in' }}
+    </button>
+  </form>
+</div>

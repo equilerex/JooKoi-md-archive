@@ -1,0 +1,402 @@
+
+=== DIRECTORY TREE (max depth 3, source files only) ===
+.angular
+.angular\cache
+.angular\cache\21.2.9
+.angular\cache\21.2.9\web
+.DS_Store
+.env
+.env.example
+.gitignore
+.idea
+.idea\.gitignore
+.idea\compiler.xml
+.idea\jokoivi kmowledge.iml
+.idea\modules.xml
+.idea\vcs.xml
+.idea\workspace.xml
+.nx
+.nx\cache
+.nx\cache\run.json
+.nx\cache\terminalOutputs
+.nx\cache\terminalOutputs\5747125675800730786
+.nx\cache\terminalOutputs\7187254737217088423
+.nx\workspace-data
+.nx\workspace-data\544ad8b2-b95e-41a5-a535-13bcd6cb239c.db
+.nx\workspace-data\544ad8b2-b95e-41a5-a535-13bcd6cb239c.db-shm
+.nx\workspace-data\544ad8b2-b95e-41a5-a535-13bcd6cb239c.db-wal
+.nx\workspace-data\544ad8b2-b95e-41a5-a535-13bcd6cb239c.lock
+.nx\workspace-data\d
+.nx\workspace-data\d\daemon.log
+.nx\workspace-data\d\server-process.json
+.nx\workspace-data\file-map.json
+.nx\workspace-data\jest-7930610538513362720.hash
+.nx\workspace-data\lockfile-dependencies.hash
+.nx\workspace-data\lockfile-nodes.hash
+.nx\workspace-data\nx_files.nxt
+.nx\workspace-data\parsed-lock-file.dependencies.json
+.nx\workspace-data\parsed-lock-file.nodes.json
+.nx\workspace-data\project-graph.json
+.nx\workspace-data\source-maps.json
+.nx\workspace-data\webpack-7566275343909617285.hash
+.prettierignore
+.prettierrc
+.vscode
+.vscode\launch.json
+api
+api\jest.config.cts
+api\project.json
+api\src
+api\src\app
+api\src\app\app.module.ts
+api\src\app\auth.controller.ts
+api\src\app\auth.guard.ts
+api\src\app\auth.service.ts
+api\src\app\dto
+api\src\app\entities
+api\src\app\notes.controller.ts
+api\src\app\notes.service.spec.ts
+api\src\app\notes.service.ts
+api\src\assets
+api\src\assets\.gitkeep
+api\src\main.ts
+api\tsconfig.app.json
+api\tsconfig.json
+api\tsconfig.spec.json
+api\webpack.config.js
+API_EDGE_CASES.md
+data
+data\notes.sqlite
+DEPLOYMENT.md
+docs
+docs\codebase
+docs\codebase\.codebase-scan.txt
+eslint.config.mjs
+jest.config.ts
+jest.preset.js
+newFeatures.md
+nginx.jookoi.com.test.conf
+nx.json
+package-lock.json
+package.json
+README.md
+shared
+shared\src
+shared\src\models.ts
+test.md
+tsconfig.json
+web
+web\eslint.config.mjs
+web\project.json
+web\public
+web\public\favicon.ico
+web\src
+web\src\app
+web\src\app\_theme.scss
+web\src\app\app.config.ts
+web\src\app\app.html
+web\src\app\app.routes.ts
+web\src\app\app.scss
+web\src\app\app.spec.ts
+web\src\app\app.ts
+web\src\app\core
+web\src\app\features
+web\src\app\markdown-rendering.scss
+web\src\app\shared
+web\src\environments
+web\src\environments\environment.prod.ts
+web\src\environments\environment.ts
+web\src\index.html
+web\src\main.ts
+web\src\proxy.conf.json
+web\src\styles
+web\src\styles\_shared-ui.scss
+web\src\styles.scss
+web\tsconfig.app.json
+web\tsconfig.json
+web\tsconfig.spec.json
+
+=== STACK DETECTION (manifest files) ===
+
+--- package-lock.json ---
+{
+  "name": "jokoivi-simple-md-archive",
+  "version": "1.0.0",
+  "lockfileVersion": 2,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "jokoivi-simple-md-archive",
+      "version": "1.0.0",
+      "dependencies": {
+        "@angular/cdk": "^21.2.9",
+        "@angular/common": "~21.2.0",
+        "@angular/compiler": "~21.2.0",
+        "@angular/core": "~21.2.0",
+        "@angular/forms": "~21.2.0",
+        "@angular/material": "^21.2.9",
+        "@angular/platform-browser": "~21.2.0",
+        "@angular/router": "~21.2.0",
+        "@nestjs/common": "^11.0.0",
+        "@nestjs/core": "^11.0.0",
+        "@nestjs/platform-express": "^11.0.0",
+        "@nestjs/typeorm": "^11.0.1",
+        "@types/marked": "^6.0.0",
+        "class-transformer": "^0.5.1",
+        "class-validator": "^0.15.1",
+        "highlight.js": "^11.11.1",
+        "marked": "^18.0.3",
+        "marked-highlight": "^2.2.4",
+        "reflect-metadata": "^0.1.13",
+        "rxjs": "~7.8.0",
+        "sqlite3": "^5.1.7",
+        "tslib": "^2.3.0",
+        "typeorm": "^0.3.28"
+      },
+      "devDependencies": {
+        "@angular-devkit/core": "~21.2.0",
+        "@angular-devkit/schematics": "~21.2.0",
+        "@angular/build": "~21.2.0",
+        "@angular/cli": "~21.2.0",
+        "@angular/compiler-cli": "~21.2.0",
+        "@angular/language-service": "~21.2.0",
+        "@eslint/js": "^9.8.0",
+        "@nestjs/schematics": "^11.0.0",
+        "@nestjs/testing": "^11.0.0",
+        "@nx/angular": "^22.6.5",
+        "@nx/eslint": "22.6.5",
+        "@nx/eslint-plugin": "22.6.5",
+        "@nx/jest": "22.6.5",
+        "@nx/js": "22.6.5",
+        "@nx/nest": "^22.6.5",
+        "@nx/node": "22.6.5",
+        "@nx/web": "22.6.5",
+        "@nx/webpack": "22.6.5",
+        "@oxc-project/runtime": "^0.115.0",
+        "@schematics/angular": "~21.2.0",
+        "@swc-node/register": "~1.11.1",
+        "@swc/core": "~1.15.5",
+        "@swc/helpers": "~0.5.18",
+        "@types/jest": "^30.0.0",
+        "@types/node": "20.19.9",
+        "@typescript-eslint/utils": "^8.40.0",
+        "angular-eslint": "^21.2.0",
+        "eslint": "^9.8.0",
+        "eslint-config-prettier": "^10.0.0",
+        "jest": "^30.0.2",
+        "jest-environment-node": "^30.0.2",
+        "jest-util": "^30.0.2",
+        "jsdom": "^27.1.0",
+        "nx": "22.6.5",
+        "prettier": "~3.6.2",
+        "ts-jest": "^29.4.0",
+        "ts-node": "10.9.1",
+        "typescript": "^5.5.3",
+        "typescript-eslint": "^8.40.0",
+        "vitest": "^4.0.8",
+        "webpack-cli": "^5.1.4"
+      }
+    },
+    "node_modules/@acemir/cssom": {
+      "version": "0.9.31",
+
+[TRUNCATED] Showing first 80 of 47690 lines.
+--- package.json ---
+{
+  "name": "jokoivi-simple-md-archive",
+  "version": "1.0.0",
+  "description": "Markdown knowledge tree POC built with Angular, NestJS, and SQLite.",
+  "scripts": {
+    "build": "nx run-many -t build --projects=web,api",
+    "build:web:prod": "nx build web --configuration=production",
+    "build:api:prod": "nx build api --configuration=production",
+    "start:web": "nx serve web",
+    "start:api": "nx serve api",
+    "test": "nx run-many -t test --projects=web,api",
+    "clean": "nx reset && rm -rf .nx .angular dist",
+   "watch": "nx reset && nx run-many -t serve --projects=web,api --parallel --output-style=stream --skip-nx-cache --verbose",
+    "build:clean": "npm run clean && npm install && npm run build"
+  },
+  "devDependencies": {
+    "@angular-devkit/core": "~21.2.0",
+    "@angular-devkit/schematics": "~21.2.0",
+    "@angular/build": "~21.2.0",
+    "@angular/cli": "~21.2.0",
+    "@angular/compiler-cli": "~21.2.0",
+    "@angular/language-service": "~21.2.0",
+    "@eslint/js": "^9.8.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@nx/angular": "^22.6.5",
+    "@nx/eslint": "22.6.5",
+    "@nx/eslint-plugin": "22.6.5",
+    "@nx/jest": "22.6.5",
+    "@nx/js": "22.6.5",
+    "@nx/nest": "^22.6.5",
+    "@nx/node": "22.6.5",
+    "@nx/web": "22.6.5",
+    "@nx/webpack": "22.6.5",
+    "@oxc-project/runtime": "^0.115.0",
+    "@schematics/angular": "~21.2.0",
+    "@swc-node/register": "~1.11.1",
+    "@swc/core": "~1.15.5",
+    "@swc/helpers": "~0.5.18",
+    "@types/jest": "^30.0.0",
+    "@types/node": "20.19.9",
+    "@typescript-eslint/utils": "^8.40.0",
+    "angular-eslint": "^21.2.0",
+    "eslint": "^9.8.0",
+    "eslint-config-prettier": "^10.0.0",
+    "jest": "^30.0.2",
+    "jest-environment-node": "^30.0.2",
+    "jest-util": "^30.0.2",
+    "jsdom": "^27.1.0",
+    "nx": "22.6.5",
+    "prettier": "~3.6.2",
+    "ts-jest": "^29.4.0",
+    "ts-node": "10.9.1",
+    "typescript": "^5.5.3",
+    "typescript-eslint": "^8.40.0",
+    "vitest": "^4.0.8",
+    "webpack-cli": "^5.1.4"
+  },
+  "private": true,
+  "nx": {},
+  "dependencies": {
+    "@angular/cdk": "^21.2.9",
+    "@angular/common": "~21.2.0",
+    "@angular/compiler": "~21.2.0",
+    "@angular/core": "~21.2.0",
+    "@angular/forms": "~21.2.0",
+    "@angular/material": "^21.2.9",
+    "@angular/platform-browser": "~21.2.0",
+    "@angular/router": "~21.2.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/typeorm": "^11.0.1",
+    "@types/marked": "^6.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "highlight.js": "^11.11.1",
+    "marked": "^18.0.3",
+    "marked-highlight": "^2.2.4",
+    "reflect-metadata": "^0.1.13",
+
+[TRUNCATED] Showing first 80 of 86 lines.
+
+=== ENTRY POINTS ===
+No common entry points found. Check 'main' or 'scripts.start' in manifest files above.
+
+=== LINTING AND FORMATTING CONFIG ===
+Found: eslint.config.mjs
+Found: .prettierrc
+Found: tsconfig.json
+
+=== ENVIRONMENT VARIABLE TEMPLATES ===
+--- .env.example ---
+AUTH_USERNAME=user
+AUTH_PASSWORD=pass
+TOKEN_SECRET=jokoivi-auth-token
+
+
+=== TODO / FIXME / HACK (production code only, test dirs excluded) ===
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:377: begin: "[ ]*(?=(TODO|FIXME|NOTE|BUG|OPTIMIZE|HACK|XXX):)",
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:377: begin: "[ ]*(?=(TODO|FIXME|NOTE|BUG|OPTIMIZE|HACK|XXX):)",
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:377: begin: "[ ]*(?=(TODO|FIXME|NOTE|BUG|OPTIMIZE|HACK|XXX):)",
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:378: end: /(TODO|FIXME|NOTE|BUG|OPTIMIZE|HACK|XXX):/,
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:378: end: /(TODO|FIXME|NOTE|BUG|OPTIMIZE|HACK|XXX):/,
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:378: end: /(TODO|FIXME|NOTE|BUG|OPTIMIZE|HACK|XXX):/,
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:405: // TODO: how to include ", (, ) without breaking grammars that use these for
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:1370: // TODO: remove with version 11.0
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:1499: // TODO: Remove with v12 API
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:2014: // TODO: These spaces are not required by the Ada syntax
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:4518: // inline code snippets (TODO should get same treatment as strong and emphasis)
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:6202: // TODO: apply hinting work similar to what was done in cpp.js
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:9489: // TODO: find a better solution?
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:10371: // TODO: fix to allow these to work with sublanguage also
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:12069: // TODO: other constructors (built-in, infix).
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:15232: // TODO: post v12 with the use of look-behind this can be enabled
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:19147: // FIXME these comments should be allowed to span indented lines
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:19519: // TODO: other constructors (build-in, infix).
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:20487: begin: "\\b(?:TODO|DONE|BEGIN|END|STUB|CHG|FIXME|NOTE|BUG|XXX)\\b",
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:20487: begin: "\\b(?:TODO|DONE|BEGIN|END|STUB|CHG|FIXME|NOTE|BUG|XXX)\\b",
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:23067: // TODO: find a better solution?
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:24555: // TODO: split into different categories of keywords
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:36451: // TODO: title.function vs title.class
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:36456: // TODO: could be title.class or title.function
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:36625: // TODO: 'validate[A-Z]+' can't work in keywords
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:38495: // TODO: replace with negative look-behind when available
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:39988: // TODO: this is most likely an incorrect classification
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:40608: // TODO: find a better solution?
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:45696: // TODO: find a better solution?
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:46802: // TODO: The following characters are also allowed, but the regex isn't supported yet.
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:47620: // TODO: remove |$ hack when we have proper look-ahead support
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:49331: // TODO: Use multi-class for leading spaces
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:49337: // TODO: Use multi-class for indentation once available
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:50514: // borrowed from Prism, TODO: split out into variants
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js:50524: // borrowed from Prism, TODO: split out into variants
+
+=== GIT RECENT COMMITS (last 20) ===
+2e4f7d3 initialize project with basic configuration and dependencies
+f0e5319 Initial commit
+
+=== HIGH-CHURN FILES (last 90 days, top 20) ===
+   1 .env.example
+   1 .gitignore
+   1 .idea/.gitignore
+   1 .prettierignore
+   1 .prettierrc
+   1 API_EDGE_CASES.md
+   1 DEPLOYMENT.md
+   1 api/jest.config.cts
+   1 api/project.json
+   1 api/src/app/app.module.ts
+   1 api/src/app/auth.controller.ts
+   1 api/src/app/auth.guard.ts
+   1 api/src/app/auth.service.ts
+   1 api/src/app/dto/create-document.dto.ts
+   1 api/src/app/dto/create-folder.dto.ts
+   1 api/src/app/dto/login.dto.ts
+   1 api/src/app/dto/move-document.dto.ts
+   1 api/src/app/dto/move-folder.dto.ts
+   1 api/src/app/dto/rename-item.dto.ts
+   1 api/src/app/dto/update-document.dto.ts
+
+=== MONOREPO SIGNALS ===
+Monorepo tool detected: nx.json
+
+=== CODE METRICS ===
+Total files scanned: 157
+Total lines of code: 110607
+
+Files by language:
+  Other: 92
+  TypeScript: 38
+  JavaScript: 27
+
+Top 10 largest files:
+.angular\cache\21.2.9\web\angular-compiler.db: 2304.0KB
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js.map: 2270.5KB
+package-lock.json: 1802.1KB
+.angular\cache\21.2.9\web\vite\deps\highlight__js.js: 1592.9KB
+.angular\cache\21.2.9\web\vite\deps\chunk-75BDNPQS.js.map: 1351.8KB
+.nx\workspace-data\project-graph.json: 1083.8KB
+.angular\cache\21.2.9\web\vite\deps\chunk-75BDNPQS.js: 814.2KB
+.nx\workspace-data\parsed-lock-file.nodes.json: 669.7KB
+.nx\workspace-data\parsed-lock-file.dependencies.json: 502.0KB
+.angular\cache\21.2.9\web\vite\deps\@angular_router.js.map: 356.4KB
+
+=== CI/CD PIPELINES ===
+No CI/CD pipelines detected.
+
+=== CONTAINERS & ORCHESTRATION ===
+No containerization configs detected.
+
+=== SECURITY & COMPLIANCE ===
+No security configs detected.
+
+=== PERFORMANCE & TESTING ===
+No performance testing configs detected.
+
+=== SCAN COMPLETE ===
