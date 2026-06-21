@@ -16,23 +16,15 @@ export class NotesTreeStore {
   private readonly selectedNodeIdState = signal<string | null>(null);
   private readonly activeFolderIdState = signal<string | null>(null);
   private readonly searchResultsState = signal<SearchResult[]>([]);
+  private readonly sortByState = signal<'name' | 'date'>('name');
 
   readonly tree = this.treeState.asReadonly();
   readonly visibleTree = computed(() => {
     const results = this.searchResultsState();
-    if (!results.length) {
-      return this.treeState();
-    }
-
-    const matchingIds = new Set(results.map((result) => result.id));
-    const parentIds = new Set(
-      results
-        .map((result) => result.parentId)
-        .filter((parentId): parentId is string => !!parentId),
-    );
-
-    return this.filterTree(this.treeState(), matchingIds, parentIds);
+    let tree = results.length ? this.filterTree(this.treeState(), new Set(results.map((result) => result.id)), new Set(results.map((result) => result.parentId).filter((parentId): parentId is string => !!parentId))) : this.treeState();
+    return this.sortTree(tree, this.sortByState());
   });
+  readonly sortBy = this.sortByState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly selectedNodeId = this.selectedNodeIdState.asReadonly();
@@ -64,7 +56,7 @@ export class NotesTreeStore {
       )
       .subscribe({
         next: (tree) => {
-          this.treeState.set(this.markExpanded(tree, expandedIds));
+          this.treeState.set(this.markExpanded(tree, expandedIds, expandedIds.size > 0));
           afterLoad?.();
         },
         error: (error) => this.errorState.set(this.getErrorMessage(error)),
@@ -124,11 +116,51 @@ export class NotesTreeStore {
     return this.findNodeByIdInTree(id, this.treeState());
   }
 
-  private markExpanded(nodes: TreeNode[], expandedIds: Set<string>): TreeStateNode[] {
+  setSortBy(sortBy: 'name' | 'date'): void {
+    this.sortByState.set(sortBy);
+  }
+
+  private getNodeUpdatedDate(node: TreeStateNode): number {
+    return new Date(node.updatedAt).getTime();
+  }
+
+  private getMaxChildUpdatedDate(node: TreeStateNode): number {
+    if (node.type === 'document' || !node.children?.length) {
+      return this.getNodeUpdatedDate(node);
+    }
+
+    let maxDate = this.getNodeUpdatedDate(node);
+    for (const child of node.children) {
+      const childDate = this.getMaxChildUpdatedDate(child);
+      if (childDate > maxDate) {
+        maxDate = childDate;
+      }
+    }
+    return maxDate;
+  }
+
+  private sortTree(nodes: TreeStateNode[], sortBy: 'name' | 'date'): TreeStateNode[] {
+    const sorted = [...nodes].sort((a, b) => {
+      if (sortBy === 'name') {
+        return a.name.localeCompare(b.name);
+      } else {
+        const aDate = this.getMaxChildUpdatedDate(a);
+        const bDate = this.getMaxChildUpdatedDate(b);
+        return bDate - aDate;
+      }
+    });
+
+    return sorted.map((node) => ({
+      ...node,
+      children: node.children ? this.sortTree(node.children, sortBy) : undefined,
+    }));
+  }
+
+  private markExpanded(nodes: TreeNode[], expandedIds: Set<string>, hasSavedState: boolean): TreeStateNode[] {
     return nodes.map((node) => ({
       ...node,
-      expanded: expandedIds.has(node.id) || node.parentId === null,
-      children: node.children ? this.markExpanded(node.children, expandedIds) : undefined,
+      expanded: expandedIds.has(node.id) || (!hasSavedState && node.parentId === null),
+      children: node.children ? this.markExpanded(node.children, expandedIds, hasSavedState) : undefined,
     }));
   }
 

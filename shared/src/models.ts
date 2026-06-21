@@ -5,6 +5,8 @@ export interface TreeNode {
   name: string;
   type: ItemType;
   parentId: string | null;
+  createdAt: string;
+  updatedAt: string;
   children?: TreeNode[];
 }
 
@@ -13,6 +15,7 @@ export interface DocumentDetail {
   name: string;
   folderId: string | null;
   content: string;
+  encrypted: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +37,7 @@ export interface CreateDocumentRequest {
   name: string;
   folderId: string | null;
   content?: string;
+  encrypted?: boolean;
 }
 
 export interface RenameItemRequest {
@@ -50,4 +54,5 @@ export interface MoveDocumentRequest {
 
 export interface UpdateDocumentRequest {
   content: string;
+  encrypted?: boolean;
 }

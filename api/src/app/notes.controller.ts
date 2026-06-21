@@ -90,7 +90,7 @@ export class NotesController {
     @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true })) body: UpdateDocumentDto,
   ) {
-    return this.notesService.updateDocument(id, body.content);
+    return this.notesService.updateDocument(id, body.content, body.encrypted);
   }
 
   @Delete('folders/:id')

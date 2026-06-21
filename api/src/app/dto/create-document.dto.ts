@@ -1,5 +1,6 @@
 import { CreateDocumentRequest } from '@shared/models';
 import {
+  IsBoolean,
   IsOptional,
   IsString,
   Matches,
@@ -11,7 +12,7 @@ export class CreateDocumentDto implements CreateDocumentRequest {
   @IsString()
   @MinLength(1)
   @MaxLength(120)
-  @Matches(/\.md$/i, { message: 'Document name must end with .md' })
+  @Matches(/\.(md|mdx)$/i, { message: 'Document name must end with .md or .mdx' })
   name!: string;
 
   @IsOptional()
@@ -21,4 +22,8 @@ export class CreateDocumentDto implements CreateDocumentRequest {
   @IsOptional()
   @IsString()
   content?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  encrypted?: boolean;
 }

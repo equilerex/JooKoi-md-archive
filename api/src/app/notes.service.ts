@@ -39,6 +39,8 @@ export class NotesService {
         name: folder.name,
         type: 'folder',
         parentId: folder.parentId,
+        createdAt: folder.createdAt.toISOString(),
+        updatedAt: folder.updatedAt.toISOString(),
         children: [],
       });
     }
@@ -57,6 +59,8 @@ export class NotesService {
         name: document.name,
         type: 'document',
         parentId: document.folderId,
+        createdAt: document.createdAt.toISOString(),
+        updatedAt: document.updatedAt.toISOString(),
       };
 
       if (document.folderId && nodes.has(document.folderId)) {
@@ -96,6 +100,8 @@ export class NotesService {
       name: saved.name,
       type: 'folder',
       parentId: saved.parentId,
+      createdAt: saved.createdAt.toISOString(),
+      updatedAt: saved.updatedAt.toISOString(),
       children: [],
     };
   }
@@ -111,6 +117,7 @@ export class NotesService {
       name,
       folderId: input.folderId,
       content: input.content ?? '',
+      encrypted: input.encrypted ?? false,
     });
     const saved = await this.documentRepository.save(document);
 
@@ -134,6 +141,8 @@ export class NotesService {
       name: saved.name,
       type: 'folder',
       parentId: saved.parentId,
+      createdAt: saved.createdAt.toISOString(),
+      updatedAt: saved.updatedAt.toISOString(),
       children: [],
     };
   }
@@ -184,6 +193,8 @@ export class NotesService {
       name: saved.name,
       type: 'folder',
       parentId: saved.parentId,
+      createdAt: saved.createdAt.toISOString(),
+      updatedAt: saved.updatedAt.toISOString(),
       children: [],
     };
   }
@@ -204,13 +215,16 @@ export class NotesService {
     return this.toDocumentDetail(saved);
   }
 
-  async updateDocument(id: string, content: string): Promise<DocumentDetail> {
+  async updateDocument(id: string, content: string, encrypted?: boolean): Promise<DocumentDetail> {
     const document = await this.documentRepository.findOneBy({ id });
     if (!document) {
       throw new NotFoundException('Document not found');
     }
 
     document.content = content;
+    if (encrypted !== undefined) {
+      document.encrypted = encrypted;
+    }
     const saved = await this.documentRepository.save(document);
     return this.toDocumentDetail(saved);
   }
@@ -315,8 +329,8 @@ export class NotesService {
   }
 
   private ensureMarkdownName(name: string): void {
-    if (!/\.md$/i.test(name)) {
-      throw new BadRequestException('Document name must end with .md');
+    if (!/\.(md|mdx)$/i.test(name)) {
+      throw new BadRequestException('Document name must end with .md or .mdx');
     }
   }
 
@@ -411,6 +425,7 @@ export class NotesService {
       name: document.name,
       folderId: document.folderId,
       content: document.content,
+      encrypted: document.encrypted,
       createdAt: document.createdAt.toISOString(),
       updatedAt: document.updatedAt.toISOString(),
     };
@@ -428,7 +443,7 @@ export class NotesService {
   }
 
   private toDocumentPathSegment(name: string): string {
-    return name.replace(/\.md$/i, '');
+    return name.replace(/\.(md|mdx)$/i, '');
   }
 
   private sortTree(nodes: TreeNode[]): void {

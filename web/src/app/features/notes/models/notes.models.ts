@@ -9,4 +9,5 @@ export interface BreadcrumbItem {
   name: string;
   kind: 'home' | 'folder' | 'document';
   current?: boolean;
+  folderId?: string;
 }

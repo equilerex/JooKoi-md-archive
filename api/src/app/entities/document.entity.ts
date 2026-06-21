@@ -25,6 +25,9 @@ export class DocumentEntity {
   @Column({ type: 'text', default: '' })
   content!: string;
 
+  @Column({ type: 'boolean', default: false })
+  encrypted!: boolean;
+
   @CreateDateColumn()
   createdAt!: Date;
 

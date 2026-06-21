@@ -10,7 +10,7 @@
     "start:api": "nx serve api",
     "test": "nx run-many -t test --projects=web,api",
     "clean": "nx reset && rm -rf .nx .angular dist",
-   "watch": "nx reset && nx run-many -t serve --projects=web,api --parallel --output-style=stream --skip-nx-cache --verbose",
+    "watch": "nx reset && nx run-many -t serve --projects=web,api --parallel --output-style=stream --skip-nx-cache --verbose",
     "build:clean": "npm run clean && npm install && npm run build"
   },
   "devDependencies": {
@@ -77,6 +77,7 @@
     "highlight.js": "^11.11.1",
     "marked": "^18.0.3",
     "marked-highlight": "^2.2.4",
+    "mermaid": "^11.15.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "~7.8.0",
     "sqlite3": "^5.1.7",

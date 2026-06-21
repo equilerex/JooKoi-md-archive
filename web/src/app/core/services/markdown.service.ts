@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import hljs from 'highlight.js';
+import mermaid from 'mermaid';
 import { marked } from 'marked';
 
 @Injectable({
@@ -8,11 +9,22 @@ import { marked } from 'marked';
 export class MarkdownService {
   constructor() {
     this.configureMarked();
+    mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
+  }
+
+  async renderMermaid(container: HTMLElement): Promise<void> {
+    const nodes = container.querySelectorAll<HTMLElement>('.mermaid:not([data-processed="true"])');
+    if (!nodes.length) {
+      return;
+    }
+
+    await mermaid.run({ nodes: Array.from(nodes) });
   }
 
   parse(content: string): string {
     try {
-      const result = marked.parse(content);
+      const filtered = content.split('\n').filter(line => !line.trim().startsWith('import ')).join('\n');
+      const result = marked.parse(filtered);
       return typeof result === 'string' ? result : String(result);
     } catch (error) {
       console.error('Failed to parse markdown:', error);
@@ -50,6 +62,10 @@ export class MarkdownService {
         code: (token: any) => {
           const codeStr = this.toCodeString(token);
           let lang = this.toLanguage(token);
+
+          if (lang === 'mermaid') {
+            return `<div class="mermaid">${this.escapeHtml(codeStr)}</div>`;
+          }
           let highlighted: string | null = null;
 
           if (lang && hljs.getLanguage(lang)) {

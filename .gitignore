@@ -26,3 +26,7 @@ data/
 
 nginx.jookoi.com.test.conf
 DEPLOYMENT_SPECIFIC.md
+
+# MemPalace per-project files (issue #185)
+mempalace.yaml
+entities.json

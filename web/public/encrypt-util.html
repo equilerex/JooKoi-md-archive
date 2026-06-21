@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Encrypt / Decrypt Utility</title>
+<style>
+  body { font-family: monospace; max-width: 640px; margin: 2rem auto; padding: 1rem; background: #f5f0e8; color: #183223; }
+  h1 { font-size: 1.2rem; margin-bottom: 1.5rem; }
+  label { display: block; margin-bottom: 0.25rem; font-size: 0.85rem; font-weight: 600; }
+  input, textarea { width: 100%; box-sizing: border-box; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px; font-family: monospace; font-size: 0.9rem; margin-bottom: 1rem; background: #fff; }
+  textarea { height: 100px; resize: vertical; }
+  .row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+  button { padding: 0.5rem 1.2rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; background: #183223; color: white; }
+  button:hover { background: #2a4d38; }
+  .out { background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 0.75rem; min-height: 60px; word-break: break-all; font-size: 0.85rem; white-space: pre-wrap; }
+  .note { font-size: 0.75rem; color: #64725f; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+<h1>Encrypt / Decrypt Utility</h1>
+
+<label>Key (username)</label>
+<input id="key" type="text" placeholder="your username" />
+
+<label>Input text</label>
+<textarea id="input" placeholder="Paste plaintext or ciphertext here"></textarea>
+
+<div class="row">
+  <button onclick="run('encrypt')">Encrypt</button>
+  <button onclick="run('decrypt')">Decrypt</button>
+  <button onclick="run('encryptSegment')">Encrypt URL segment</button>
+  <button onclick="run('decryptSegment')">Decrypt URL segment</button>
+</div>
+
+<label>Output</label>
+<div class="out" id="output">&nbsp;</div>
+<p class="note">Uses XOR + btoa — same algorithm as the app. URL segments are prefixed with <code>e:</code>.</p>
+
+<script>
+function xor(input, key) {
+  let out = '';
+  for (let i = 0; i < input.length; i++) {
+    out += String.fromCharCode(input.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+  }
+  return out;
+}
+
+function encrypt(text, key) {
+  return btoa(unescape(encodeURIComponent(xor(text, key))));
+}
+
+function decrypt(cipher, key) {
+  try {
+    return xor(decodeURIComponent(escape(atob(cipher))), key);
+  } catch {
+    return '[decryption failed — check key or input]';
+  }
+}
+
+function run(mode) {
+  const key = document.getElementById('key').value;
+  const input = document.getElementById('input').value;
+  const out = document.getElementById('output');
+
+  if (!key) { out.textContent = 'Enter a key first.'; return; }
+  if (!input) { out.textContent = 'Enter input text first.'; return; }
+
+  if (mode === 'encrypt') out.textContent = encrypt(input, key);
+  else if (mode === 'decrypt') out.textContent = decrypt(input, key);
+  else if (mode === 'encryptSegment') out.textContent = 'e:' + encrypt(input, key);
+  else if (mode === 'decryptSegment') {
+    const s = input.startsWith('e:') ? input.slice(2) : input;
+    out.textContent = decrypt(s, key);
+  }
+}
+</script>
+</body>
+</html>

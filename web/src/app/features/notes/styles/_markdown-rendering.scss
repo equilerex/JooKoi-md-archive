@@ -1,71 +1,60 @@
-$font-family-sans: var(--font-family-sans);
-$font-family-mono: var(--font-family-mono);
-$font-family-serif: var(--font-family-serif);
+$font-family-mono: 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
 
-$markdown-font-size: var(--markdown-font-size, 1rem);
+$markdown-font-size: 1rem;
 $markdown-line-height: 1.7;
 $code-font-size: 0.85rem;
+$code-background: #e3e3e3;
+$code-color: #111827;
 $code-block-background: #282c34;
 
-code:not(.hljs):not([class*='language-']) {
-  background: $code-block-background;
-  color: #fff;
-  padding: 0.05rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.85em;
-  font-weight: 500;
+/* Force color printing for PDF generation */
+* {
+  -webkit-print-color-adjust: exact !important;
+  color-adjust: exact !important;
+  print-color-adjust: exact !important;
 }
 
+/* ==========================================================================
+   UNIFIED MARKDOWN CONTENT STYLES (Screen & Print)
+   ========================================================================== */
+
 .markdown-content,
-.prose,
+.prose-content,
 .message-content {
   font-size: $markdown-font-size;
   line-height: $markdown-line-height;
-  color: var(--color-text, #111827);
+  color: #111827;
 
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
+  h1, h2, h3, h4, h5, h6 {
     margin-top: 1.2rem;
     margin-bottom: 0.75rem;
     font-weight: 500;
     color: inherit;
   }
 
-  h1 {
-    font-size: 1.4rem;
-  }
-
-  h2 {
-    font-size: 1.3rem;
-  }
-
-  h3 {
-    font-size: 1.25rem;
-  }
-
-  h4 {
-    font-size: 1.125rem;
-  }
-
-  h5 {
-    font-size: 1rem;
-  }
-
-  h6 {
-    font-size: 0.875rem;
-  }
+  h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.3rem; }
+  h3 { font-size: 1.25rem; }
+  h4 { font-size: 1.125rem; }
+  h5 { font-size: 1rem; }
+  h6 { font-size: 0.875rem; }
 
   p {
     margin-bottom: 1rem;
   }
 
-  code,
-  pre {
-    font-family: $font-family-mono !important;
+  code, pre {
+    font-family: Consolas, 'Söhne Mono', Monaco, 'Andale Mono', 'Ubuntu Mono', monospace !important;
+  }
+
+  // Inline code
+  code:not(.hljs):not([class*='language-']) {
+    background: $code-background !important;
+    color: $code-color !important;
+    padding: 0.2rem 0.4rem !important;
+    border-radius: 4px !important;
+    font-size: 0.9em !important;
+    font-weight: 600 !important;
   }
 
   pre {
@@ -95,6 +84,7 @@ code:not(.hljs):not([class*='language-']) {
   pre[class*='language-'] {
     background: $code-block-background !important;
     color: #fff !important;
+    -webkit-hyphens: none;
     hyphens: none;
     tab-size: 4;
     text-align: left;
@@ -110,52 +100,14 @@ code:not(.hljs):not([class*='language-']) {
     white-space: pre-wrap !important;
   }
 
-  .hljs-comment {
-    color: hsla(0, 0%, 100%, 0.5) !important;
-  }
-
-  .hljs-meta {
-    color: hsla(0, 0%, 100%, 0.6) !important;
-  }
-
-  .hljs-built_in,
-  .hljs-class .hljs-title {
-    color: #e9950c !important;
-  }
-
-  .hljs-doctag,
-  .hljs-formula,
-  .hljs-keyword,
-  .hljs-literal {
-    color: #2e95d3 !important;
-  }
-
-  .hljs-addition,
-  .hljs-attribute,
-  .hljs-meta-string,
-  .hljs-regexp,
-  .hljs-string {
-    color: #00a67d !important;
-  }
-
-  .hljs-attr,
-  .hljs-number,
-  .hljs-selector-attr,
-  .hljs-selector-class,
-  .hljs-selector-pseudo,
-  .hljs-template-variable,
-  .hljs-type,
-  .hljs-variable {
-    color: #df3079 !important;
-  }
-
-  .hljs-bullet,
-  .hljs-link,
-  .hljs-selector-id,
-  .hljs-symbol,
-  .hljs-title {
-    color: #f22c3d !important;
-  }
+  // Highlight.js theme
+  .hljs-comment { color: hsla(0, 0%, 100%, 0.5) !important; }
+  .hljs-meta { color: hsla(0, 0%, 100%, 0.6) !important; }
+  .hljs-built_in, .hljs-class .hljs-title { color: #e9950c !important; }
+  .hljs-doctag, .hljs-formula, .hljs-keyword, .hljs-literal { color: #2e95d3 !important; }
+  .hljs-addition, .hljs-attribute, .hljs-meta-string, .hljs-regexp, .hljs-string { color: #00a67d !important; }
+  .hljs-attr, .hljs-number, .hljs-selector-attr, .hljs-selector-class, .hljs-selector-pseudo, .hljs-template-variable, .hljs-type, .hljs-variable { color: #df3079 !important; }
+  .hljs-bullet, .hljs-link, .hljs-selector-id, .hljs-symbol, .hljs-title { color: #f22c3d !important; }
 
   blockquote {
     border-left: 4px solid #2e95d3;
@@ -165,12 +117,11 @@ code:not(.hljs):not([class*='language-']) {
   }
 
   table {
+    border-collapse: collapse;
     width: 100%;
     margin: 1rem 0;
-    border-collapse: collapse;
 
-    th,
-    td {
+    th, td {
       border: 1px solid #e0e0e0;
       padding: 0.5rem;
       text-align: left;
@@ -182,10 +133,9 @@ code:not(.hljs):not([class*='language-']) {
     }
   }
 
-  ul,
-  ol {
-    margin: 1rem 0;
+  ul, ol {
     padding-left: 2rem;
+    margin: 1rem 0;
   }
 
   li {
@@ -209,11 +159,10 @@ code:not(.hljs):not([class*='language-']) {
       position: absolute;
       top: 0.5rem;
       right: 0.5rem;
+      background: rgba(255, 255, 255, 0.9);
       border: 1px solid rgba(0, 0, 0, 0.2);
       border-radius: 4px;
       padding: 0.25rem 0.5rem;
-      background: rgba(255, 255, 255, 0.9);
-      color: #111827;
       font-size: 0.75rem;
       cursor: pointer;
       transition: all 0.2s;
@@ -223,5 +172,109 @@ code:not(.hljs):not([class*='language-']) {
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
     }
+  }
+}
+
+/* ==========================================================================
+   PRINT-SPECIFIC OVERRIDES
+   ========================================================================== */
+
+@media print {
+  .markdown-content,
+  .prose-content,
+  .message-content {
+    pre,
+    code.hljs,
+    code[class*='language-'],
+    pre[class*='language-'] {
+      background: $code-block-background !important;
+      color: #fff !important;
+      overflow: visible !important;
+      word-wrap: break-word !important;
+      white-space: pre-wrap !important;
+      border: none !important;
+      box-shadow: none !important;
+      -webkit-print-color-adjust: exact !important;
+      color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    code:not(.hljs):not([class*='language-']) {
+      background: #e3e3e3 !important;
+      color: #111827 !important;
+      -webkit-print-color-adjust: exact !important;
+      color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      font-size: 0.875em;
+      font-weight: 500;
+      padding: 0.125rem 0.25rem;
+      border-radius: 0.35rem;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+      page-break-after: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    li {
+      page-break-inside: avoid;
+    }
+  }
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .markdown-content,
+  .prose-content,
+  .message-content {
+    font-size: 0.875rem;
+
+    h1 { font-size: 1.4rem; }
+    h2 { font-size: 1.3rem; }
+    h3 { font-size: 1.2rem; }
+
+    pre {
+      border-radius: 0;
+      font-size: 0.75rem;
+      overflow-x: auto;
+    }
+
+    table {
+      font-size: 0.75rem;
+    }
+  }
+}
+
+@media print and (max-width: 768px) {
+  .markdown-content,
+  .prose-content,
+  .message-content {
+    pre {
+      overflow: visible !important;
+    }
+  }
+}
+
+/* ==========================================================================
+   SCROLLBAR STYLES (Screen only)
+   ========================================================================== */
+
+@media screen {
+  ::-webkit-scrollbar {
+    height: 0.1em;
+    width: 0.5rem;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: transparent;
+    border-radius: 9999px;
   }
 }
