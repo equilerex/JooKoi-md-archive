@@ -3,30 +3,42 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-const AUTH_USERNAME = process.env.AUTH_USERNAME || 'user';
-const AUTH_PASSWORD = process.env.AUTH_PASSWORD || 'pass';
 const TOKEN_SECRET = process.env.TOKEN_SECRET || 'jokoivi-auth-token';
 const THIRTY_DAYS_MS = 1000 * 60 * 60 * 24 * 30;
+
+const USERS = parseUsers(process.env.AUTH_USERS || 'user:pass');
 
 interface AuthTokenPayload {
   sub: string;
   exp: number;
 }
 
+function parseUsers(usersString: string): Map<string, string> {
+  const users = new Map<string, string>();
+  usersString.split(',').forEach((pair) => {
+    const [username, password] = pair.trim().split(':');
+    if (username && password) {
+      users.set(username, password);
+    }
+  });
+  return users;
+}
+
 @Injectable()
 export class AuthService {
   login(username: string, password: string) {
-    if (!this.isValidCredential(username, AUTH_USERNAME) || !this.isValidCredential(password, AUTH_PASSWORD)) {
+    const storedPassword = USERS.get(username);
+    if (!storedPassword || !this.isValidCredential(password, storedPassword)) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
     const expiresAt = Date.now() + THIRTY_DAYS_MS;
-    const token = this.signToken({ sub: AUTH_USERNAME, exp: expiresAt });
+    const token = this.signToken({ sub: username, exp: expiresAt });
 
     return {
       token,
       expiresAt,
-      username: AUTH_USERNAME,
+      username,
     };
   }
 
@@ -48,8 +60,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid token');
     }
 
-    if (payload.sub !== AUTH_USERNAME || payload.exp <= Date.now()) {
-      throw new UnauthorizedException('Token expired');
+    if (!USERS.has(payload.sub) || payload.exp <= Date.now()) {
+      throw new UnauthorizedException('Token expired or invalid user');
     }
 
     return payload;

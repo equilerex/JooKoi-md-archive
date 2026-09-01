@@ -9,6 +9,11 @@ import { TreeStateNode } from '../../models/notes.models';
   selector: 'jo-tree-node',
   imports: [MatIconModule, MatMenuModule, MatButtonModule],
   template: `
+    <a
+      [href]="nodeHref()"
+      class="jo-tree-node-link"
+      (click)="onLinkClick($event)"
+    >
     <div
       class="jo-tree-node"
       [class.jo-tree-node--selected]="isSelected()"
@@ -61,6 +66,7 @@ import { TreeStateNode } from '../../models/notes.models';
         </button>
       </mat-menu>
     </div>
+    </a>
 
     @if (node().children?.length && node().expanded) {
       <div class="jo-tree-node__group">
@@ -69,6 +75,8 @@ import { TreeStateNode } from '../../models/notes.models';
             [node]="child"
             [selectedId]="selectedId()"
             [draggedNodeId]="draggedNodeId()"
+            [getNodePath]="getNodePath()"
+            [encryptSegment]="encryptSegment()"
             (select)="select.emit($event)"
             (toggle)="toggle.emit($event)"
             (dragNode)="dragNode.emit($event)"
@@ -88,6 +96,8 @@ export class TreeNode {
   node = input.required<TreeStateNode>();
   selectedId = input<string | null>(null);
   draggedNodeId = input<string | null>(null);
+  getNodePath = input.required<(nodeId: string) => string[] | null>();
+  encryptSegment = input.required<(segment: string) => string>();
 
   select = output<TreeStateNode>();
   toggle = output<TreeStateNode>();
@@ -106,6 +116,21 @@ export class TreeNode {
     return draggedId !== null && draggedId !== nodeId && this.node().type === 'folder';
   });
   protected readonly formattedName = computed(() => this.node().name.replace(/\.(md|mdx)$/i, ''));
+  protected readonly nodeHref = computed(() => {
+    const pathSegments = this.getNodePath()(this.node().id);
+    if (!pathSegments) {
+      return '#';
+    }
+    const encodedSegments = pathSegments.map((seg) => this.encryptSegment()(seg));
+    return `/notes/${encodedSegments.join('/')}`;
+  });
+
+  protected onLinkClick(event: MouseEvent): void {
+    if (event.ctrlKey || event.metaKey || event.button === 1) {
+      return;
+    }
+    event.preventDefault();
+  }
 
   protected onItemClick(event: MouseEvent): void {
     event.stopPropagation();

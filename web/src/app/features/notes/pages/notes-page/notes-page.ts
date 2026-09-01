@@ -6,6 +6,7 @@ import {
   computed,
   DestroyRef,
   effect,
+  ElementRef,
   inject,
   signal,
   viewChild,
@@ -73,17 +74,19 @@ export class NotesPage {
   private readonly api = inject(NotesApiService);
   private readonly authService = inject(AuthService);
   private readonly markdown = inject(MarkdownService);
-  private readonly crypto = inject(CryptoService);
+  protected readonly crypto = inject(CryptoService);
   private readonly sanitizer = inject(DomSanitizer);
 
   protected readonly treeStore = inject(NotesTreeStore);
   private readonly previewComponent = viewChild(MarkdownPreview);
+  private readonly modalInput = viewChild<ElementRef<HTMLInputElement>>('modalInput');
   private readonly breakpointObserver = inject(BreakpointObserver);
 
   protected readonly saving = signal(false);
   protected readonly drawerOpen = signal(false);
   protected readonly isMobile = signal(false);
   protected readonly mobileView = signal<'edit' | 'preview'>('edit');
+  protected readonly editorViewMode = signal<'code' | 'split' | 'preview'>('split');
   protected readonly searchQuery = signal('');
   protected readonly pageError = signal<string | null>(null);
   protected readonly selectedDocument = signal<DocumentDetail | null>(null);
@@ -123,7 +126,7 @@ export class NotesPage {
       return [];
     }
 
-    const crumbs: BreadcrumbItem[] = [{ name: 'Home', kind: 'home' }];
+    const crumbs: BreadcrumbItem[] = [];
 
     for (let index = 0; index < pathNodes.length - 1; index += 1) {
       crumbs.push({ name: pathNodes[index].name, kind: 'folder', folderId: pathNodes[index].id });
@@ -169,6 +172,14 @@ export class NotesPage {
         queueMicrotask(() => {
           this.addCopyButtons(container);
           void this.markdown.renderMermaid(container);
+        });
+      }
+    });
+
+    effect(() => {
+      if (this.modal()) {
+        queueMicrotask(() => {
+          this.modalInput()?.nativeElement.focus();
         });
       }
     });
@@ -518,6 +529,36 @@ export class NotesPage {
       });
   }
 
+  protected getNodePathSegments = (nodeId: string): (string[] | null) => {
+    return this.findPathSegmentsByNodeId(nodeId, this.treeStore.tree());
+  };
+
+  protected encryptPathSegment = (segment: string): string => {
+    return this.crypto.encryptSegment(segment);
+  };
+
+  protected findPathSegmentsByNodeId(
+    nodeId: string,
+    nodes: TreeStateNode[],
+    trail: string[] = [],
+  ): string[] | null {
+    for (const node of nodes) {
+      const nextTrail = [...trail, this.toPathSegment(node)];
+      if (node.id === nodeId) {
+        return nextTrail;
+      }
+
+      if (node.children?.length) {
+        const match = this.findPathSegmentsByNodeId(nodeId, node.children, nextTrail);
+        if (match) {
+          return match;
+        }
+      }
+    }
+
+    return null;
+  }
+
   private navigateToNode(nodeId: string, replaceUrl: boolean): void {
     const pathSegments = this.findPathSegmentsByNodeId(nodeId, this.treeStore.tree());
     if (!pathSegments) {
@@ -593,28 +634,6 @@ export class NotesPage {
 
       if (node.children?.length) {
         const match = this.findPathNodesByNodeId(nodeId, node.children, nextTrail);
-        if (match) {
-          return match;
-        }
-      }
-    }
-
-    return null;
-  }
-
-  private findPathSegmentsByNodeId(
-    nodeId: string,
-    nodes: TreeStateNode[],
-    trail: string[] = [],
-  ): string[] | null {
-    for (const node of nodes) {
-      const nextTrail = [...trail, this.toPathSegment(node)];
-      if (node.id === nodeId) {
-        return nextTrail;
-      }
-
-      if (node.children?.length) {
-        const match = this.findPathSegmentsByNodeId(nodeId, node.children, nextTrail);
         if (match) {
           return match;
         }

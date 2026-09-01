@@ -25,7 +25,7 @@
   line-height: 1;
   letter-spacing: normal;
   text-transform: none;
-  display: inline-block;
+  display: inline-block; 
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
@@ -84,8 +84,6 @@
 html {
   color-scheme: light dark;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  height: 100%;
-
   @include mat.core();
 
   $theme: mat.define-theme((
@@ -106,7 +104,6 @@ html {
 
 body {
   margin: 0;
-  height: 100%;
   background: #fafafa;
   color: #212121;
 }

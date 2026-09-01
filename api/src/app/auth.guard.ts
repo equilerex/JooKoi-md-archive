@@ -12,14 +12,15 @@ export class AuthGuard implements CanActivate {
   constructor(private readonly authService: AuthService) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<Request & { userId?: string }>();
     const authHeader = request.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
       throw new UnauthorizedException('Missing bearer token');
     }
 
     const token = authHeader.slice('Bearer '.length);
-    this.authService.verifyToken(token);
+    const payload = this.authService.verifyToken(token);
+    request.userId = payload.sub;
     return true;
   }
 }

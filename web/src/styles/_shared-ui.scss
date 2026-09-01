@@ -17,20 +17,44 @@ textarea {
 }
 
 .jo-btn {
-  border: 0;
+  border: 2px solid transparent;
   border-radius: 12px;
   padding: 0.7rem 0.95rem;
   background: #183223;
   color: #f7f3eb;
   cursor: pointer;
+  font-weight: 500;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+
+  &:hover:not(:disabled) {
+    background: #1f3d2d;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #ed883a;
+    outline-offset: 2px;
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
 
   &:disabled {
-    opacity: 0.55;
+    background: #183223;
+    opacity: 0.5;
     cursor: not-allowed;
   }
 
   &--danger {
     background: #8c3b2f;
+
+    &:hover:not(:disabled) {
+      background: #a64a3a;
+    }
+
+    &:focus-visible {
+      outline-color: #e11d48;
+    }
   }
 }
 
@@ -43,6 +67,23 @@ textarea {
     border-radius: 12px;
     padding: 0.8rem 0.9rem;
     background: rgba(255, 255, 255, 0.75);
+    transition: border-color 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+
+    &:focus {
+      outline: none;
+      background: #fff;
+      border-color: #183223;
+      box-shadow: 0 0 0 3px rgba(24, 50, 35, 0.1);
+    }
+
+    &:invalid {
+      border-color: #8c3b2f;
+      background: rgba(140, 59, 47, 0.04);
+
+      &:focus {
+        box-shadow: 0 0 0 3px rgba(140, 59, 47, 0.15);
+      }
+    }
   }
 }
 

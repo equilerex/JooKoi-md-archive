@@ -15,7 +15,7 @@ import { getHttpErrorMessage } from '../../../../shared/utils/http-error-message
   imports: [FormField],
   selector: 'jo-login-page',
   templateUrl: './login-page.html',
-  styleUrl: './login-page.scss',
+  styleUrl: './login-page.scss', 
 })
 export class LoginPage {
   private readonly authService = inject(AuthService);

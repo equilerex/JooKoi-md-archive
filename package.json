@@ -4,7 +4,7 @@
   "description": "Markdown knowledge tree POC built with Angular, NestJS, and SQLite.",
   "scripts": {
     "build": "nx run-many -t build --projects=web,api",
-    "build:web:prod": "node scripts/build-web.js",
+    "build:web:prod": "node build-web.js",
     "build:api:prod": "nx build api --configuration=production",
     "start:web": "nx serve web",
     "start:api": "nx serve api",

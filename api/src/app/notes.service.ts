@@ -24,10 +24,10 @@ export class NotesService {
     private readonly documentRepository: Repository<DocumentEntity>,
   ) {}
 
-  async getTree(): Promise<TreeNode[]> {
+  async getTree(userId: string): Promise<TreeNode[]> {
     const [folders, documents] = await Promise.all([
-      this.folderRepository.find({ order: { name: 'ASC' } }),
-      this.documentRepository.find({ order: { name: 'ASC' } }),
+      this.folderRepository.find({ where: { userId }, order: { name: 'ASC' } }),
+      this.documentRepository.find({ where: { userId }, order: { name: 'ASC' } }),
     ]);
 
     const nodes = new Map<string, TreeNode>();
@@ -74,8 +74,8 @@ export class NotesService {
     return roots;
   }
 
-  async getDocument(id: string): Promise<DocumentDetail> {
-    const document = await this.documentRepository.findOneBy({ id });
+  async getDocument(id: string, userId: string): Promise<DocumentDetail> {
+    const document = await this.documentRepository.findOneBy({ id, userId });
     if (!document) {
       throw new NotFoundException('Document not found');
     }
@@ -83,15 +83,16 @@ export class NotesService {
     return this.toDocumentDetail(document);
   }
 
-  async createFolder(input: CreateFolderRequest): Promise<TreeNode> {
+  async createFolder(input: CreateFolderRequest, userId: string): Promise<TreeNode> {
     const name = input.name.trim();
-    await this.ensureParentFolderExists(input.parentId);
-    await this.ensureFolderNameAvailable(input.parentId, name);
-    await this.ensureFolderPathNameAvailable(input.parentId, name);
+    await this.ensureParentFolderExists(input.parentId, userId);
+    await this.ensureFolderNameAvailable(input.parentId, name, undefined, userId);
+    await this.ensureFolderPathNameAvailable(input.parentId, name, undefined, userId);
 
     const folder = this.folderRepository.create({
       name,
       parentId: input.parentId,
+      userId,
     });
     const saved = await this.folderRepository.save(folder);
 
@@ -106,33 +107,34 @@ export class NotesService {
     };
   }
 
-  async createDocument(input: CreateDocumentRequest): Promise<DocumentDetail> {
+  async createDocument(input: CreateDocumentRequest, userId: string): Promise<DocumentDetail> {
     const name = input.name.trim();
     this.ensureMarkdownName(name);
-    await this.ensureParentFolderExists(input.folderId);
-    await this.ensureDocumentNameAvailable(input.folderId, name);
-    await this.ensureDocumentPathNameAvailable(input.folderId, name);
+    await this.ensureParentFolderExists(input.folderId, userId);
+    await this.ensureDocumentNameAvailable(input.folderId, name, undefined, userId);
+    await this.ensureDocumentPathNameAvailable(input.folderId, name, undefined, userId);
 
     const document = this.documentRepository.create({
       name,
       folderId: input.folderId,
       content: input.content ?? '',
       encrypted: input.encrypted ?? false,
+      userId,
     });
     const saved = await this.documentRepository.save(document);
 
     return this.toDocumentDetail(saved);
   }
 
-  async renameFolder(id: string, name: string): Promise<TreeNode> {
-    const folder = await this.folderRepository.findOneBy({ id });
+  async renameFolder(id: string, name: string, userId: string): Promise<TreeNode> {
+    const folder = await this.folderRepository.findOneBy({ id, userId });
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }
 
     const nextName = name.trim();
-    await this.ensureFolderNameAvailable(folder.parentId, nextName, folder.id);
-    await this.ensureFolderPathNameAvailable(folder.parentId, nextName, folder.id);
+    await this.ensureFolderNameAvailable(folder.parentId, nextName, folder.id, userId);
+    await this.ensureFolderPathNameAvailable(folder.parentId, nextName, folder.id, userId);
     folder.name = nextName;
     const saved = await this.folderRepository.save(folder);
 
@@ -147,24 +149,24 @@ export class NotesService {
     };
   }
 
-  async renameDocument(id: string, name: string): Promise<DocumentDetail> {
-    const document = await this.documentRepository.findOneBy({ id });
+  async renameDocument(id: string, name: string, userId: string): Promise<DocumentDetail> {
+    const document = await this.documentRepository.findOneBy({ id, userId });
     if (!document) {
       throw new NotFoundException('Document not found');
     }
 
     const nextName = name.trim();
     this.ensureMarkdownName(nextName);
-    await this.ensureDocumentNameAvailable(document.folderId, nextName, document.id);
-    await this.ensureDocumentPathNameAvailable(document.folderId, nextName, document.id);
+    await this.ensureDocumentNameAvailable(document.folderId, nextName, document.id, userId);
+    await this.ensureDocumentPathNameAvailable(document.folderId, nextName, document.id, userId);
     document.name = nextName;
     const saved = await this.documentRepository.save(document);
 
     return this.toDocumentDetail(saved);
   }
 
-  async moveFolder(id: string, parentId: string | null): Promise<TreeNode> {
-    const folder = await this.folderRepository.findOneBy({ id });
+  async moveFolder(id: string, parentId: string | null, userId: string): Promise<TreeNode> {
+    const folder = await this.folderRepository.findOneBy({ id, userId });
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }
@@ -173,17 +175,17 @@ export class NotesService {
       throw new BadRequestException('Cannot move a folder into itself');
     }
 
-    await this.ensureParentFolderExists(parentId);
+    await this.ensureParentFolderExists(parentId, userId);
 
     if (parentId) {
-      const descendantIds = await this.collectFolderIds(id);
+      const descendantIds = await this.collectFolderIds(id, userId);
       if (descendantIds.includes(parentId)) {
         throw new BadRequestException('Cannot move a folder into its own descendant');
       }
     }
 
-    await this.ensureFolderNameAvailable(parentId, folder.name, folder.id);
-    await this.ensureFolderPathNameAvailable(parentId, folder.name);
+    await this.ensureFolderNameAvailable(parentId, folder.name, folder.id, userId);
+    await this.ensureFolderPathNameAvailable(parentId, folder.name, undefined, userId);
 
     folder.parentId = parentId;
     const saved = await this.folderRepository.save(folder);
@@ -199,15 +201,15 @@ export class NotesService {
     };
   }
 
-  async moveDocument(id: string, folderId: string | null): Promise<DocumentDetail> {
-    const document = await this.documentRepository.findOneBy({ id });
+  async moveDocument(id: string, folderId: string | null, userId: string): Promise<DocumentDetail> {
+    const document = await this.documentRepository.findOneBy({ id, userId });
     if (!document) {
       throw new NotFoundException('Document not found');
     }
 
-    await this.ensureParentFolderExists(folderId);
-    await this.ensureDocumentNameAvailable(folderId, document.name, document.id);
-    await this.ensureDocumentPathNameAvailable(folderId, document.name);
+    await this.ensureParentFolderExists(folderId, userId);
+    await this.ensureDocumentNameAvailable(folderId, document.name, document.id, userId);
+    await this.ensureDocumentPathNameAvailable(folderId, document.name, undefined, userId);
 
     document.folderId = folderId;
     const saved = await this.documentRepository.save(document);
@@ -215,8 +217,8 @@ export class NotesService {
     return this.toDocumentDetail(saved);
   }
 
-  async updateDocument(id: string, content: string, encrypted?: boolean): Promise<DocumentDetail> {
-    const document = await this.documentRepository.findOneBy({ id });
+  async updateDocument(id: string, content: string, userId: string, encrypted?: boolean): Promise<DocumentDetail> {
+    const document = await this.documentRepository.findOneBy({ id, userId });
     if (!document) {
       throw new NotFoundException('Document not found');
     }
@@ -229,34 +231,34 @@ export class NotesService {
     return this.toDocumentDetail(saved);
   }
 
-  async deleteDocument(id: string): Promise<void> {
-    const result = await this.documentRepository.delete({ id });
+  async deleteDocument(id: string, userId: string): Promise<void> {
+    const result = await this.documentRepository.delete({ id, userId });
     if (!result.affected) {
       throw new NotFoundException('Document not found');
     }
   }
 
-  async deleteFolder(id: string): Promise<void> {
-    const folder = await this.folderRepository.findOneBy({ id });
+  async deleteFolder(id: string, userId: string): Promise<void> {
+    const folder = await this.folderRepository.findOneBy({ id, userId });
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }
 
-    const folderIds = await this.collectFolderIds(id);
+    const folderIds = await this.collectFolderIds(id, userId);
     await this.documentRepository
       .createQueryBuilder()
       .delete()
-      .where('folderId IN (:...folderIds)', { folderIds })
+      .where('userId = :userId AND folderId IN (:...folderIds)', { userId, folderIds })
       .execute();
 
     await this.folderRepository
       .createQueryBuilder()
       .delete()
-      .where('id IN (:...folderIds)', { folderIds })
+      .where('userId = :userId AND id IN (:...folderIds)', { userId, folderIds })
       .execute();
   }
 
-  async search(query: string): Promise<SearchResult[]> {
+  async search(query: string, userId: string): Promise<SearchResult[]> {
     const term = query.trim();
     if (!term) {
       return [];
@@ -265,14 +267,14 @@ export class NotesService {
     const [folders, documents] = await Promise.all([
       this.folderRepository
         .createQueryBuilder('folder')
-        .where('LOWER(folder.name) LIKE LOWER(:query)', { query: `%${term}%` })
+        .where('folder.userId = :userId AND LOWER(folder.name) LIKE LOWER(:query)', { userId, query: `%${term}%` })
         .orderBy('folder.name', 'ASC')
         .limit(10)
         .getMany(),
       this.documentRepository
         .createQueryBuilder('document')
-        .where('LOWER(document.name) LIKE LOWER(:query)', { query: `%${term}%` })
-        .orWhere('LOWER(document.content) LIKE LOWER(:query)', { query: `%${term}%` })
+        .where('document.userId = :userId AND LOWER(document.name) LIKE LOWER(:query)', { userId, query: `%${term}%` })
+        .orWhere('document.userId = :userId AND LOWER(document.content) LIKE LOWER(:query)', { userId, query: `%${term}%` })
         .orderBy('document.updatedAt', 'DESC')
         .limit(10)
         .getMany(),
@@ -295,12 +297,12 @@ export class NotesService {
     ];
   }
 
-  private async ensureParentFolderExists(parentId: string | null): Promise<void> {
+  private async ensureParentFolderExists(parentId: string | null, userId: string): Promise<void> {
     if (!parentId) {
       return;
     }
 
-    const folder = await this.folderRepository.findOneBy({ id: parentId });
+    const folder = await this.folderRepository.findOneBy({ id: parentId, userId });
     if (!folder) {
       throw new NotFoundException('Parent folder not found');
     }
@@ -310,8 +312,9 @@ export class NotesService {
     parentId: string | null,
     name: string,
     excludeId?: string,
+    userId?: string,
   ): Promise<void> {
-    const existing = await this.findFolderByParentAndName(parentId, name);
+    const existing = await this.findFolderByParentAndName(parentId, name, userId);
     if (existing && existing.id !== excludeId) {
       throw new BadRequestException('A folder with this name already exists here');
     }
@@ -321,8 +324,9 @@ export class NotesService {
     folderId: string | null,
     name: string,
     excludeId?: string,
+    userId?: string,
   ): Promise<void> {
-    const existing = await this.findDocumentByFolderAndName(folderId, name);
+    const existing = await this.findDocumentByFolderAndName(folderId, name, userId);
     if (existing && existing.id !== excludeId) {
       throw new BadRequestException('A document with this name already exists here');
     }
@@ -338,8 +342,9 @@ export class NotesService {
     parentId: string | null,
     name: string,
     excludeDocumentId?: string,
+    userId?: string,
   ): Promise<void> {
-    const existingDocument = await this.findDocumentByFolderAndName(parentId, `${name}.md`);
+    const existingDocument = await this.findDocumentByFolderAndName(parentId, `${name}.md`, userId);
     if (existingDocument && existingDocument.id !== excludeDocumentId) {
       throw new BadRequestException(
         'A document with the same path name already exists here',
@@ -351,10 +356,12 @@ export class NotesService {
     folderId: string | null,
     name: string,
     excludeFolderId?: string,
+    userId?: string,
   ): Promise<void> {
     const existingFolder = await this.findFolderByParentAndName(
       folderId,
       this.toDocumentPathSegment(name),
+      userId,
     );
     if (existingFolder && existingFolder.id !== excludeFolderId) {
       throw new BadRequestException(
@@ -363,8 +370,8 @@ export class NotesService {
     }
   }
 
-  private async collectFolderIds(rootId: string): Promise<string[]> {
-    const folders = await this.folderRepository.find();
+  private async collectFolderIds(rootId: string, userId: string): Promise<string[]> {
+    const folders = await this.folderRepository.find({ where: { userId } });
     const childrenByParent = new Map<string | null, string[]>();
 
     for (const folder of folders) {
@@ -388,10 +395,15 @@ export class NotesService {
   private async findFolderByParentAndName(
     parentId: string | null,
     name: string,
+    userId?: string,
   ): Promise<FolderEntity | null> {
     const query = this.folderRepository
       .createQueryBuilder('folder')
       .where('folder.name = :name', { name });
+
+    if (userId) {
+      query.andWhere('folder.userId = :userId', { userId });
+    }
 
     if (parentId === null) {
       query.andWhere('folder.parentId IS NULL');
@@ -405,10 +417,15 @@ export class NotesService {
   private async findDocumentByFolderAndName(
     folderId: string | null,
     name: string,
+    userId?: string,
   ): Promise<DocumentEntity | null> {
     const query = this.documentRepository
       .createQueryBuilder('document')
       .where('document.name = :name', { name });
+
+    if (userId) {
+      query.andWhere('document.userId = :userId', { userId });
+    }
 
     if (folderId === null) {
       query.andWhere('document.folderId IS NULL');

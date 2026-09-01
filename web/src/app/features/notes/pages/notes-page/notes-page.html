@@ -12,7 +12,6 @@
         (keydown.enter)="m.value.trim() && m.confirm(m.value)"
         (keydown.escape)="modal.set(null)"
         #modalInput
-        autofocus
       />
       <div class="jo-modal__actions">
         <button class="jo-modal__cancel" (click)="modal.set(null)">Cancel</button>
@@ -25,15 +24,15 @@
 <div class="jo-shell">
   <!-- Sidebar card -->
   <aside class="jo-sidebar" [class.jo-sidebar--open]="isMobile() ? drawerOpen() : true" [class.jo-sidebar--mobile]="isMobile()">
-    <div class="jo-sidebar__header">
+    <a routerLink="/">
       <div class="jo-sidebar__brand">
         <span class="jo-sidebar__avatar">K</span>
         <div>
           <div class="jo-sidebar__title">Knowledge Files</div>
-          <div class="jo-sidebar__subtitle">SQLite-backed markdown tree</div>
+          <div class="jo-sidebar__subtitle">Joosep's Archivesdsd</div>
         </div>
       </div>
-    </div>
+    </a>
 
     <div class="jo-sidebar__actions">
       <button class="jo-action-btn" (click)="createFolder()">
@@ -53,20 +52,35 @@
           class="jo-search-input"
           type="search"
           placeholder="Search…"
+          aria-label="Search notes"
           [ngModel]="searchQuery()"
           (ngModelChange)="searchQuery.set($event); runSearch()"
         />
-        <mat-select [ngModel]="treeStore.sortBy()" (ngModelChange)="changeSortBy($event)" class="jo-sort-select">
-          <mat-select-trigger><mat-icon style="font-size:14px;width:14px;height:14px;vertical-align:middle">sort</mat-icon></mat-select-trigger>
-          <mat-option value="name">Name (A–Z)</mat-option>
-          <mat-option value="date">Date (Newest)</mat-option>
-        </mat-select>
+        <button
+          mat-icon-button
+          class="jo-search-sort"
+          (click)="changeSortBy(treeStore.sortBy() === 'name' ? 'date' : 'name')"
+          [matTooltip]="'Sort: ' + (treeStore.sortBy() === 'name' ? 'Name (A–Z)' : 'Date (Newest)')"
+          aria-label="Toggle sort order"
+        >
+          <mat-icon>sort</mat-icon>
+        </button>
+        @if (searchQuery()) {
+          <button
+            mat-icon-button
+            class="jo-search-clear"
+            (click)="searchQuery.set(''); runSearch()"
+            aria-label="Clear search"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        }
       </div>
     </div>
 
     <div class="jo-tree-panel">
       @if (treeStore.loading()) {
-        <p class="jo-state-msg">Loading…</p>
+        <p class="jo-state-msg" style="animation: pulse 1.5s var(--jo-ease) infinite;">Loading…</p>
       }
       @if (treeStore.error()) {
         <p class="jo-state-msg jo-state-msg--error">{{ treeStore.error() }}</p>
@@ -80,6 +94,8 @@
           [node]="node"
           [selectedId]="selectedNodeId()"
           [draggedNodeId]="draggedNodeId()"
+          [getNodePath]="getNodePathSegments"
+          [encryptSegment]="encryptPathSegment"
           (select)="handleNodeSelection($event)"
           (toggle)="toggleFolder($event.id)"
           (dragNode)="handleDragStart($event)"
@@ -106,7 +122,7 @@
   }
 
   <!-- Workspace card -->
-  <div class="jo-workspace">
+  <main class="jo-workspace" aria-label="Document editor">
     <!-- Toolbar -->
     <header class="jo-toolbar no-print">
       @if (isMobile()) {
@@ -122,22 +138,64 @@
 
       <span class="jo-toolbar__spacer"></span>
 
-      <!-- Mobile edit/preview toggle in toolbar -->
-      @if (isMobile()) {
-        <mat-button-toggle-group
-          class="jo-view-toggle-inline"
-          [ngModel]="mobileView()"
-          (ngModelChange)="mobileView.set($event)"
-          hideSingleSelectionIndicator
-        >
-          <mat-button-toggle value="edit"><mat-icon>edit</mat-icon></mat-button-toggle>
-          <mat-button-toggle value="preview"><mat-icon>preview</mat-icon></mat-button-toggle>
-        </mat-button-toggle-group>
-      }
+      <!-- View mode toggle -->
+      <div class="jo-toolbar__view-toggle">
+        @if (!isMobile()) {
+          <button
+            [class.active]="editorViewMode() === 'code'"
+            (click)="editorViewMode.set('code')"
+            matTooltip="Code only"
+            aria-label="View code only"
+            mat-icon-button
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button
+            [class.active]="editorViewMode() === 'split'"
+            (click)="editorViewMode.set('split')"
+            matTooltip="Split view"
+            aria-label="View split"
+            mat-icon-button
+          >
+            <mat-icon>view_day</mat-icon>
+          </button>
+          <button
+            [class.active]="editorViewMode() === 'preview'"
+            (click)="editorViewMode.set('preview')"
+            matTooltip="Preview only"
+            aria-label="View preview only"
+            mat-icon-button
+          >
+            <mat-icon>preview</mat-icon>
+          </button>
+        } @else {
+          <button
+            [class.active]="mobileView() === 'edit'"
+            (click)="mobileView.set('edit')"
+            matTooltip="Edit"
+            aria-label="View code"
+            mat-icon-button
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button
+            [class.active]="mobileView() === 'preview'"
+            (click)="mobileView.set('preview')"
+            matTooltip="Preview"
+            aria-label="View preview"
+            mat-icon-button
+          >
+            <mat-icon>preview</mat-icon>
+          </button>
+        }
+      </div>
+
+      <div class="jo-toolbar__divider"></div>
 
       <button
         mat-icon-button
         matTooltip="Copy raw text"
+        aria-label="Copy raw text"
         (click)="copyToClipboard()"
         [disabled]="!draftContent() || documentLoading()"
       >
@@ -181,7 +239,7 @@
             <li class="jo-breadcrumb-item">
               @if (crumb.kind === 'home') { <mat-icon class="jo-breadcrumb-icon">home</mat-icon> }
               @if (crumb.kind === 'folder') { <mat-icon class="jo-breadcrumb-icon">folder</mat-icon> }
-              @if (crumb.kind === 'document') { <mat-icon class="jo-breadcrumb-icon">description</mat-icon> }
+              @if (crumb.kind === 'document') { <mat-icon class="jo-breadcrumb-icon jo-breadcrumb-icon--item">description</mat-icon> }
               @if (!last && crumb.folderId) {
                 <button class="jo-breadcrumb-btn" (click)="focusBreadcrumb(crumb.folderId)">{{ crumb.name }}</button>
               } @else {
@@ -198,22 +256,46 @@
       <p class="jo-alert jo-alert--error">{{ pageError() }}</p>
     }
 
-    <div class="jo-editor-panes" [class.jo-editor-panes--mobile]="isMobile()">
-      <div class="jo-pane jo-pane--input" [class.jo-pane--hidden]="isMobile() && mobileView() !== 'edit'">
-        <textarea
-          class="jo-textarea"
-          [ngModel]="draftContent()"
-          (ngModelChange)="draftContent.set($event)"
-          [disabled]="!selectedDocument() || documentLoading()"
-          placeholder="Open or create a .md file to start writing."
-        ></textarea>
+    <div class="jo-editor-panes"
+      [class.jo-editor-panes--mobile]="isMobile()"
+      [class.jo-editor-panes--code-only]="editorViewMode() === 'code' && !isMobile()"
+      [class.jo-editor-panes--preview-only]="editorViewMode() === 'preview' && !isMobile()"
+    >
+      <div class="jo-pane jo-pane--input" [class.jo-pane--hidden]="isMobile() && mobileView() !== 'edit' || (!isMobile() && editorViewMode() === 'preview')">
+        @if (documentLoading()) {
+          <div class="jo-skeleton-loader">
+            <div class="jo-skeleton-line"></div>
+            <div class="jo-skeleton-line jo-skeleton-line--short"></div>
+            <div class="jo-skeleton-line"></div>
+            <div class="jo-skeleton-line"></div>
+            <div class="jo-skeleton-line jo-skeleton-line--short"></div>
+          </div>
+        } @else {
+          <textarea
+            class="jo-textarea"
+            [ngModel]="draftContent()"
+            (ngModelChange)="draftContent.set($event)"
+            [disabled]="!selectedDocument()"
+            placeholder="Open or create a .md file to start writing."
+          ></textarea>
+        }
       </div>
 
-      <div class="jo-pane jo-pane--preview" [class.jo-pane--hidden]="isMobile() && mobileView() !== 'preview'">
-        <jo-markdown-preview
-          [html]="renderedContent()"
-          (scroll)="onRenderScroll($event)"
-        />
+      <div class="jo-pane jo-pane--preview" [class.jo-pane--hidden]="isMobile() && mobileView() !== 'preview' || (!isMobile() && editorViewMode() === 'code')">
+        @if (documentLoading()) {
+          <div class="jo-skeleton-loader">
+            <div class="jo-skeleton-line"></div>
+            <div class="jo-skeleton-line jo-skeleton-line--short"></div>
+            <div class="jo-skeleton-line"></div>
+            <div class="jo-skeleton-line"></div>
+            <div class="jo-skeleton-line jo-skeleton-line--short"></div>
+          </div>
+        } @else {
+          <jo-markdown-preview
+            [html]="renderedContent()"
+            (scroll)="onRenderScroll($event)"
+          />
+        }
       </div>
     </div>
 
@@ -233,7 +315,7 @@
     >
       <mat-icon>arrow_upward</mat-icon>
     </button>
-  </div>
+  </main>
 </div>
 
 <!-- Print title -->

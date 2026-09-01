@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
@@ -25,81 +26,88 @@ export class NotesController {
   constructor(private readonly notesService: NotesService) {}
 
   @Get('tree')
-  getTree() {
-    return this.notesService.getTree();
+  getTree(@Req() req: any) {
+    return this.notesService.getTree(req.userId);
   }
 
   @Get('search')
-  search(@Query('query') query = '') {
-    return this.notesService.search(query);
+  search(@Query('query') query = '', @Req() req: any) {
+    return this.notesService.search(query, req.userId);
   }
 
   @Get('documents/:id')
-  getDocument(@Param('id') id: string) {
-    return this.notesService.getDocument(id);
+  getDocument(@Param('id') id: string, @Req() req: any) {
+    return this.notesService.getDocument(id, req.userId);
   }
 
   @Post('folders')
   createFolder(
     @Body(new ValidationPipe({ whitelist: true })) body: CreateFolderDto,
+    @Req() req: any,
   ) {
-    return this.notesService.createFolder(body);
+    return this.notesService.createFolder(body, req.userId);
   }
 
   @Post('documents')
   createDocument(
     @Body(new ValidationPipe({ whitelist: true })) body: CreateDocumentDto,
+    @Req() req: any,
   ) {
-    return this.notesService.createDocument(body);
+    return this.notesService.createDocument(body, req.userId);
   }
 
   @Patch('folders/:id')
   renameFolder(
     @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true })) body: RenameItemDto,
+    @Req() req: any,
   ) {
-    return this.notesService.renameFolder(id, body.name);
+    return this.notesService.renameFolder(id, body.name, req.userId);
   }
 
   @Patch('folders/:id/move')
   moveFolder(
     @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true })) body: MoveFolderDto,
+    @Req() req: any,
   ) {
-    return this.notesService.moveFolder(id, body.parentId ?? null);
+    return this.notesService.moveFolder(id, body.parentId ?? null, req.userId);
   }
 
   @Patch('documents/:id/rename')
   renameDocument(
     @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true })) body: RenameItemDto,
+    @Req() req: any,
   ) {
-    return this.notesService.renameDocument(id, body.name);
+    return this.notesService.renameDocument(id, body.name, req.userId);
   }
 
   @Patch('documents/:id/move')
   moveDocument(
     @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true })) body: MoveDocumentDto,
+    @Req() req: any,
   ) {
-    return this.notesService.moveDocument(id, body.folderId ?? null);
+    return this.notesService.moveDocument(id, body.folderId ?? null, req.userId);
   }
 
   @Patch('documents/:id')
   updateDocument(
     @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true })) body: UpdateDocumentDto,
+    @Req() req: any,
   ) {
-    return this.notesService.updateDocument(id, body.content, body.encrypted);
+    return this.notesService.updateDocument(id, body.content, req.userId, body.encrypted);
   }
 
   @Delete('folders/:id')
-  deleteFolder(@Param('id') id: string) {
-    return this.notesService.deleteFolder(id);
+  deleteFolder(@Param('id') id: string, @Req() req: any) {
+    return this.notesService.deleteFolder(id, req.userId);
   }
 
   @Delete('documents/:id')
-  deleteDocument(@Param('id') id: string) {
-    return this.notesService.deleteDocument(id);
+  deleteDocument(@Param('id') id: string, @Req() req: any) {
+    return this.notesService.deleteDocument(id, req.userId);
   }
 }

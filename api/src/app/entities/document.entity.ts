@@ -11,10 +11,13 @@ import {
 import { FolderEntity } from './folder.entity';
 
 @Entity({ name: 'documents' })
-@Index(['folderId', 'name'], { unique: true })
+@Index(['userId', 'folderId', 'name'], { unique: true })
 export class DocumentEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column()
+  userId!: string;
 
   @Column()
   name!: string;
