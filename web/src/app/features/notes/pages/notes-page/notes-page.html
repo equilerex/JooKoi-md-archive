@@ -24,15 +24,17 @@
 <div class="jo-shell">
   <!-- Sidebar card -->
   <aside class="jo-sidebar" [class.jo-sidebar--open]="isMobile() ? drawerOpen() : true" [class.jo-sidebar--mobile]="isMobile()">
-    <a routerLink="/">
-      <div class="jo-sidebar__brand">
-        <span class="jo-sidebar__avatar">K</span>
-        <div>
-          <div class="jo-sidebar__title">Knowledge Files</div>
-          <div class="jo-sidebar__subtitle">Joosep's Archivesdsd</div>
+    <div class="jo-sidebar__header">
+      <a routerLink="/" class="jo-sidebar__brand-link">
+        <div class="jo-sidebar__brand">
+          <span class="jo-sidebar__avatar">K</span>
+          <div>
+            <div class="jo-sidebar__title">Knowledge Files</div>
+            <div class="jo-sidebar__subtitle">Joosep's Archivesdsd</div>
+          </div>
         </div>
-      </div>
-    </a>
+      </a>
+    </div>
 
     <div class="jo-sidebar__actions">
       <button class="jo-action-btn" (click)="createFolder()">
@@ -203,9 +205,21 @@
       </button>
 
       <button
+        mat-icon-button
+        class="jo-toolbar__encrypt-toggle"
+        [class.active]="encrypted()"
+        [matTooltip]="encrypted() ? 'Content is encrypted (decrypt to render)' : 'Content is plain text'"
+        [attr.aria-label]="encrypted() ? 'Mark content as plain text' : 'Mark content as encrypted'"
+        (click)="encrypted.set(!encrypted())"
+        [disabled]="!selectedDocument() && !isDraft()"
+      >
+        <mat-icon>{{ encrypted() ? 'lock' : 'lock_open' }}</mat-icon>
+      </button>
+
+      <button
         class="jo-btn-save"
         (click)="saveDocument()"
-        [disabled]="!selectedDocument() || !isDirty() || saving()"
+        [disabled]="!isDirty() || saving()"
       >
         <mat-icon>save</mat-icon>
         {{ saving() ? 'Saving…' : 'Save' }}
@@ -272,11 +286,12 @@
           </div>
         } @else {
           <textarea
+            #draftTextarea
             class="jo-textarea"
             [ngModel]="draftContent()"
             (ngModelChange)="draftContent.set($event)"
-            [disabled]="!selectedDocument()"
-            placeholder="Open or create a .md file to start writing."
+            [disabled]="documentLoading()"
+            placeholder="Open a document, or start typing to create one here. It will be named from the first # heading on save."
           ></textarea>
         }
       </div>

@@ -34,7 +34,7 @@
 
 <label>Output</label>
 <div class="out" id="output">&nbsp;</div>
-<p class="note">Uses XOR + btoa — same algorithm as the app. URL segments are prefixed with <code>e:</code>.</p>
+<p class="note">Uses XOR + base64url — same algorithm as the app. URL segments are prefixed with <code>e:</code>. This is obfuscation, not confidentiality: the key is your username, which is not secret.</p>
 
 <script>
 function xor(input, key) {
@@ -45,13 +45,29 @@ function xor(input, key) {
   return out;
 }
 
+// Kept byte-for-byte equivalent to CryptoService in the app. base64url, because
+// standard base64's "/" splits an Angular route segment and breaks deep links.
+function toBase64Url(base64) {
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Tolerant of both alphabets so ciphertext produced before the base64url switch
+// still decrypts here.
+function fromBase64Url(value) {
+  let base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+  const remainder = base64.length % 4;
+  if (remainder === 2) base64 += '==';
+  else if (remainder === 3) base64 += '=';
+  return base64;
+}
+
 function encrypt(text, key) {
-  return btoa(unescape(encodeURIComponent(xor(text, key))));
+  return toBase64Url(btoa(unescape(encodeURIComponent(xor(text, key)))));
 }
 
 function decrypt(cipher, key) {
   try {
-    return xor(decodeURIComponent(escape(atob(cipher))), key);
+    return xor(decodeURIComponent(escape(atob(fromBase64Url(cipher)))), key);
   } catch {
     return '[decryption failed — check key or input]';
   }

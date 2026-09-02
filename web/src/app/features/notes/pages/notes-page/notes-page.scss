@@ -66,6 +66,11 @@
     flex-shrink: 0;
   }
 
+  &__brand-link {
+    text-decoration: none;
+    display: block;
+  }
+
   &__brand {
     display: flex;
     align-items: center;
@@ -143,9 +148,9 @@
   height: 28px;
   padding: 0 10px;
   border-radius: 8px;
-  border: 1.5px solid rgb(28 16 51 / 25%);
-  background-color: rgba(28, 16, 51, 0.08);
-  color: rgb(28, 16, 51);
+  border: 1.5px solid rgba(237, 136, 58, 0.35);
+  background-color: rgba(237, 136, 58, 0.10);
+  color: var(--jo-accent-hover);
   font-family: var(--jo-font);
   font-size: 0.75rem;
   font-weight: 600;
@@ -157,18 +162,18 @@
   mat-icon { font-size: 14px; width: 14px; height: 14px; }
 
   &:hover:not(:disabled) {
-    background-color: rgba(28, 16, 51, 0.14);
-    border-color: rgb(28 16 51 / 40%);
+    background-color: rgba(237, 136, 58, 0.18);
+    border-color: rgba(237, 136, 58, 0.55);
   }
 
   &:focus-visible {
-    outline: 2px solid rgb(28, 16, 51);
+    outline: 2px solid var(--jo-accent);
     outline-offset: 1px;
   }
 
   &:active:not(:disabled) {
-    background-color: rgba(28, 16, 51, 0.22);
-    border-color: rgb(28 16 51 / 55%);
+    background-color: rgba(237, 136, 58, 0.26);
+    border-color: rgba(237, 136, 58, 0.7);
   }
 
   &:disabled {
@@ -378,6 +383,20 @@
     }
 
     mat-icon { font-size: 16px; width: 16px; height: 16px; }
+  }
+
+  // Sits outside __view-toggle, so it can't inherit that group's active styling.
+  // Locked is a meaningful state, not decoration - it changes how the pane renders.
+  &__encrypt-toggle {
+    opacity: 0.5;
+    transition: opacity 0.12s var(--jo-ease), color 0.12s var(--jo-ease);
+
+    &.active {
+      opacity: 1;
+      color: var(--jo-accent);
+    }
+
+    &:hover:not(:disabled) { opacity: 0.7; }
   }
 
   &__view-toggle {

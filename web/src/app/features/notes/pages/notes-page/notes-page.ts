@@ -14,7 +14,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { ActivatedRoute, Router, UrlSegment } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink, UrlSegment } from '@angular/router';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -60,6 +60,7 @@ import { BreadcrumbItem, TreeStateNode } from '../../models/notes.models';
     MatToolbarModule,
     MatTooltipModule,
     DatePipe,
+    RouterLink,
   ],
   selector: 'jo-notes-page',
   templateUrl: './notes-page.html',
@@ -80,6 +81,7 @@ export class NotesPage {
   protected readonly treeStore = inject(NotesTreeStore);
   private readonly previewComponent = viewChild(MarkdownPreview);
   private readonly modalInput = viewChild<ElementRef<HTMLInputElement>>('modalInput');
+  private readonly draftTextarea = viewChild<ElementRef<HTMLTextAreaElement>>('draftTextarea');
   private readonly breakpointObserver = inject(BreakpointObserver);
 
   protected readonly saving = signal(false);
@@ -92,23 +94,23 @@ export class NotesPage {
   protected readonly selectedDocument = signal<DocumentDetail | null>(null);
   protected readonly documentLoading = signal(false);
   protected readonly draftContent = signal('');
+  protected readonly encrypted = signal(false);
   protected readonly showScrollTop = signal(false);
   protected readonly draggedNodeId = signal<string | null>(null);
   protected readonly modal = signal<{
-    mode: 'folder' | 'document' | 'rename' | 'move';
+    mode: 'folder' | 'rename' | 'move';
     label: string;
     placeholder: string;
     value: string;
     confirm: (value: string) => void;
   } | null>(null);
   protected readonly renderedContent = computed<SafeHtml | string>(() => {
-    const doc = this.selectedDocument();
     let content = this.draftContent();
     if (!content) {
       return '';
     }
 
-    if (doc?.encrypted) {
+    if (this.encrypted()) {
       content = this.crypto.decrypt(content);
     }
 
@@ -142,10 +144,12 @@ export class NotesPage {
 
     return crumbs;
   });
+  protected readonly isDraft = computed(() => !this.selectedDocument() && this.draftContent().trim().length > 0);
+
   protected readonly isDirty = computed(() => {
     const doc = this.selectedDocument();
-    if (!doc) return false;
-    return doc.content !== this.draftContent();
+    if (!doc) return this.isDraft();
+    return doc.content !== this.draftContent() || doc.encrypted !== this.encrypted();
   });
 
   protected readonly documentTitle = computed(() => {
@@ -207,11 +211,20 @@ export class NotesPage {
   }
 
   protected handleNodeSelection(node: TreeStateNode): void {
+    if (!this.confirmDiscardDraft()) {
+      return;
+    }
     this.drawerOpen.set(false);
     this.navigateToNode(node.id, false);
   }
 
   protected createFolder(): void {
+    // Succeeds into navigateToNode, which routes through selectFolder and wipes
+    // draftContent. Same discard prompt as picking a node in the tree.
+    if (!this.confirmDiscardDraft()) {
+      return;
+    }
+
     this.modal.set({
       mode: 'folder',
       label: 'New folder',
@@ -228,30 +241,32 @@ export class NotesPage {
   }
 
   protected createDocument(): void {
-    this.modal.set({
-      mode: 'document',
-      label: 'New document',
-      placeholder: 'filename.md',
-      value: '',
-      confirm: (name) => {
-        this.modal.set(null);
-        const normalizedName = this.normalizeDocumentName(name);
-        if (!normalizedName) return;
-        this.api.createDocument({
-          name: normalizedName,
-          folderId: this.treeStore.activeFolderId(),
-          content: '',
-        }).subscribe({
-          next: (document) => this.treeStore.loadTree(() => this.navigateToNode(document.id, false), true),
-          error: (error) => this.setError(error),
-        });
-      },
-    });
+    if (!this.confirmDiscardDraft()) {
+      return;
+    }
+
+    this.drawerOpen.set(false);
+    this.mobileView.set('edit');
+    this.selectedDocument.set(null);
+    this.encrypted.set(false);
+    this.treeStore.setSelectedNodeId(null);
+    this.draftContent.set('');
+
+    navigator.clipboard
+      .readText()
+      .then((text) => this.draftContent.set(text))
+      .catch(() => {})
+      .finally(() => this.focusDraftEditor());
+  }
+
+  private focusDraftEditor(): void {
+    queueMicrotask(() => this.draftTextarea()?.nativeElement.focus());
   }
 
   protected renameSelected(): void {
     const current = this.treeStore.findNodeById(this.selectedNodeId());
     if (!current) return;
+    if (!this.confirmDiscardDraft()) return;
 
     this.modal.set({
       mode: 'rename',
@@ -279,6 +294,7 @@ export class NotesPage {
   protected moveSelected(): void {
     const current = this.treeStore.findNodeById(this.selectedNodeId());
     if (!current) return;
+    if (!this.confirmDiscardDraft()) return;
 
     const currentPath = current.parentId ? (this.getParentPath(current.id) ?? '/') : '/';
     this.modal.set({
@@ -328,6 +344,7 @@ export class NotesPage {
       if (current.type === 'document' && this.selectedDocument()?.id === current.id) {
         this.selectedDocument.set(null);
         this.draftContent.set('');
+        this.encrypted.set(false);
       }
 
       this.treeStore.reset();
@@ -350,24 +367,72 @@ export class NotesPage {
 
   protected saveDocument(): void {
     const selectedDocument = this.selectedDocument();
-    if (!selectedDocument) {
+    const isEncrypted = this.encrypted();
+    const content = this.draftContent();
+
+    if (selectedDocument) {
+      this.saving.set(true);
+      this.api
+        .updateDocument(selectedDocument.id, { content, encrypted: isEncrypted })
+        .pipe(finalize(() => this.saving.set(false)))
+        .subscribe({
+          next: (document) => {
+            this.selectedDocument.set({ ...document, encrypted: isEncrypted });
+            this.draftContent.set(document.content);
+          },
+          error: (error) => this.setError(error),
+        });
       return;
     }
 
-    const isEncrypted = this.crypto.isLikelyEncrypted(this.draftContent());
-    const content = this.draftContent();
+    if (!content.trim()) {
+      return;
+    }
+
+    const folderId = this.resolveDraftFolderId();
+    const name = this.deriveDraftFileName(folderId);
 
     this.saving.set(true);
     this.api
-      .updateDocument(selectedDocument.id, { content, encrypted: isEncrypted })
+      .createDocument({ name, folderId, content, encrypted: isEncrypted })
       .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
-        next: (document) => {
-          this.selectedDocument.set({ ...document, encrypted: isEncrypted });
-          this.draftContent.set(document.content);
-        },
+        next: (document) => this.treeStore.loadTree(() => this.navigateToNode(document.id, false), true),
         error: (error) => this.setError(error),
       });
+  }
+
+  private resolveDraftFolderId(): string | null {
+    const activeFolderId = this.treeStore.activeFolderId();
+    if (activeFolderId) {
+      return activeFolderId;
+    }
+
+    const firstRootFolder = this.treeStore.tree().find((node) => node.type === 'folder');
+    return firstRootFolder?.id ?? null;
+  }
+
+  private deriveDraftFileName(folderId: string | null): string {
+    const title = this.markdown.extractTitle(this.draftContent());
+    const sanitized = this.markdown.sanitizeFilename(title) || 'untitled';
+
+    const siblings = folderId
+      ? (this.treeStore.findNodeById(folderId)?.children ?? [])
+      : this.treeStore.tree();
+    const siblingNames = new Set(
+      siblings
+        .filter((node) => node.type === 'document')
+        .map((node) => node.name.toLowerCase()),
+    );
+
+    let candidate = `${sanitized}.md`;
+    let suffix = 2;
+    while (siblingNames.has(candidate.toLowerCase())) {
+      candidate = `${sanitized}-${suffix}.md`;
+      suffix += 1;
+    }
+
+    return candidate;
   }
 
   protected runSearch(): void {
@@ -410,6 +475,7 @@ export class NotesPage {
     this.selectedDocument.set(null);
     this.documentLoading.set(false);
     this.draftContent.set('');
+    this.encrypted.set(false);
     this.searchQuery.set('');
     this.pageError.set(null);
     void this.router.navigate(['/login'], { replaceUrl: true });
@@ -425,7 +491,19 @@ export class NotesPage {
       return;
     }
 
+    if (!this.confirmDiscardDraft()) {
+      return;
+    }
+
     this.navigateToNode(folderId, false);
+  }
+
+  private confirmDiscardDraft(): boolean {
+    if (!this.isDraft()) {
+      return true;
+    }
+
+    return window.confirm('Discard unsaved draft?');
   }
 
   protected changeSortBy(sortBy: 'name' | 'date'): void {
@@ -445,6 +523,11 @@ export class NotesPage {
 
     const sourceNode = this.treeStore.findNodeById(event.sourceId);
     if (!sourceNode) {
+      return;
+    }
+
+    // The move navigates to the moved node afterwards, which discards the draft.
+    if (!this.confirmDiscardDraft()) {
       return;
     }
 
@@ -510,6 +593,7 @@ export class NotesPage {
     }
     this.selectedDocument.set(null);
     this.draftContent.set('');
+    this.encrypted.set(false);
   }
 
   private openDocument(id: string): void {
@@ -521,6 +605,7 @@ export class NotesPage {
         next: (document) => {
           this.selectedDocument.set(document);
           this.draftContent.set(document.content);
+          this.encrypted.set(document.encrypted);
           this.treeStore.setActiveFolderId(document.folderId);
           this.treeStore.setSelectedNodeId(document.id);
           this.treeStore.expandParents(document.folderId);
@@ -654,15 +739,6 @@ export class NotesPage {
 
   private setError(error: unknown): void {
     this.pageError.set(this.getErrorMessage(error));
-  }
-
-  private normalizeDocumentName(name: string | null): string | null {
-    const trimmedName = name?.trim();
-    if (!trimmedName) {
-      return null;
-    }
-
-    return /\.(md|mdx)$/i.test(trimmedName) ? trimmedName : `${trimmedName}.md`;
   }
 
   private addCopyButtons(container: HTMLElement): void {

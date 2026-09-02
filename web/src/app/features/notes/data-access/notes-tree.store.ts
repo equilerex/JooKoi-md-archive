@@ -16,7 +16,17 @@ export class NotesTreeStore {
   private readonly selectedNodeIdState = signal<string | null>(null);
   private readonly activeFolderIdState = signal<string | null>(null);
   private readonly searchResultsState = signal<SearchResult[]>([]);
-  private readonly sortByState = signal<'name' | 'date'>('name');
+  private readonly sortByState = signal<'name' | 'date'>(
+    NotesTreeStore.getSavedState()?.sortBy ?? 'name',
+  );
+  /**
+   * Ids that `expandParents` expanded automatically (to reveal a selected
+   * folder/document) rather than the user explicitly toggling them open.
+   * Excluded from what gets persisted so an auto-reveal never gets "laundered"
+   * into storage by a later, unrelated `persistState()` call (e.g. toggling a
+   * different folder, or changing sort order) that snapshots the whole tree.
+   */
+  private readonly autoExpandedIdsState = signal<Set<string>>(new Set());
 
   readonly tree = this.treeState.asReadonly();
   readonly visibleTree = computed(() => {
@@ -34,7 +44,11 @@ export class NotesTreeStore {
   );
 
   loadTree(afterLoad?: () => void, quiet = false): void {
-    const expandedIds = this.getSavedExpandedIds();
+    const saved = NotesTreeStore.getSavedState();
+    const expandedIds = new Set(saved?.expandedIds ?? []);
+    const hasSavedState = saved !== null;
+
+    this.autoExpandedIdsState.set(new Set());
 
     if (!quiet) {
       this.loadingState.set(true);
@@ -56,7 +70,7 @@ export class NotesTreeStore {
       )
       .subscribe({
         next: (tree) => {
-          this.treeState.set(this.markExpanded(tree, expandedIds, expandedIds.size > 0));
+          this.treeState.set(this.markExpanded(tree, expandedIds, hasSavedState));
           afterLoad?.();
         },
         error: (error) => this.errorState.set(this.getErrorMessage(error)),
@@ -89,23 +103,50 @@ export class NotesTreeStore {
   }
 
   toggleFolder(nodeId: string): void {
-    this.treeState.update((nodes) => {
-      const nextNodes = this.toggleFolderInTree(nodes, nodeId);
-      this.saveExpandedIds(nextNodes);
-      return nextNodes;
-    });
+    this.treeState.update((nodes) => this.toggleFolderInTree(nodes, nodeId));
+    // An explicit toggle is always user intent - whichever way it goes, it
+    // overrides any auto-reveal record for this node so a later persist
+    // reflects what the user actually did, not a stale auto-expand.
+    if (this.autoExpandedIdsState().has(nodeId)) {
+      this.autoExpandedIdsState.update((ids) => {
+        const next = new Set(ids);
+        next.delete(nodeId);
+        return next;
+      });
+    }
+    this.persistState();
   }
 
+  /**
+   * Expands the ancestor chain of `parentId` in memory only (e.g. to reveal a
+   * newly opened document or selected folder). This is NOT user intent about
+   * which folders should stay expanded, so it must never be persisted -
+   * doing so would silently overwrite the user's deliberate collapse/expand
+   * choices with whatever happened to be auto-revealed. Nodes that were
+   * already expanded (deliberately, by the user) are never recorded here, so
+   * they are never mistaken for an auto-reveal later.
+   */
   expandParents(parentId: string | null): void {
     if (!parentId) {
       return;
     }
 
+    let newlyExpandedIds: string[] = [];
     this.treeState.update((nodes) => {
       const result = this.expandParentsInTree(nodes, parentId);
-      this.saveExpandedIds(result.nodes);
+      newlyExpandedIds = result.newlyExpandedIds;
       return result.nodes;
     });
+
+    if (newlyExpandedIds.length) {
+      this.autoExpandedIdsState.update((ids) => {
+        const next = new Set(ids);
+        for (const id of newlyExpandedIds) {
+          next.add(id);
+        }
+        return next;
+      });
+    }
   }
 
   findNodeById(id: string | null): TreeStateNode | null {
@@ -118,6 +159,7 @@ export class NotesTreeStore {
 
   setSortBy(sortBy: 'name' | 'date'): void {
     this.sortByState.set(sortBy);
+    this.persistState();
   }
 
   private getNodeUpdatedDate(node: TreeStateNode): number {
@@ -164,22 +206,60 @@ export class NotesTreeStore {
     }));
   }
 
-  private getSavedExpandedIds(): Set<string> {
+  /**
+   * Reads the persisted { expandedIds, sortBy } object. Returns `null` when
+   * there is nothing saved yet OR the saved value is corrupt - both cases
+   * mean "no saved state", which callers use to distinguish a fresh user
+   * (defaults apply) from a returning user who saved an empty selection
+   * (defaults must NOT apply).
+   *
+   * Migrates the legacy `jo-expanded-ids` format, a bare JSON array of
+   * expanded ids, by reading it as `expandedIds` with a default sort rather
+   * than discarding the user's existing expand/collapse state.
+   */
+  private static getSavedState(): { expandedIds: string[]; sortBy: 'name' | 'date' } | null {
     const saved = localStorage.getItem(NotesTreeStore.STORAGE_KEY);
     if (!saved) {
-      return new Set();
+      return null;
     }
 
     try {
-      return new Set(JSON.parse(saved) as string[]);
+      const parsed: unknown = JSON.parse(saved);
+
+      if (Array.isArray(parsed)) {
+        return { expandedIds: parsed as string[], sortBy: 'name' };
+      }
+
+      if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { expandedIds?: unknown }).expandedIds)) {
+        const candidate = parsed as { expandedIds: string[]; sortBy?: unknown };
+        return {
+          expandedIds: candidate.expandedIds,
+          sortBy: candidate.sortBy === 'date' ? 'date' : 'name',
+        };
+      }
+
+      return null;
     } catch {
-      return new Set();
+      return null;
     }
   }
 
-  private saveExpandedIds(nodes: TreeStateNode[]): void {
-    const ids = this.collectExpandedIds(nodes);
-    localStorage.setItem(NotesTreeStore.STORAGE_KEY, JSON.stringify(ids));
+  /**
+   * Persists the current expanded ids together with the current sort order
+   * as a single object. Ids that are only expanded because `expandParents`
+   * auto-revealed them are subtracted first, so persisted state always
+   * reflects deliberate user choices, never incidental display state.
+   */
+  private persistState(): void {
+    const autoExpandedIds = this.autoExpandedIdsState();
+    const expandedIds = this.collectExpandedIds(this.treeState()).filter(
+      (id) => !autoExpandedIds.has(id),
+    );
+    const state = {
+      expandedIds,
+      sortBy: this.sortByState(),
+    };
+    localStorage.setItem(NotesTreeStore.STORAGE_KEY, JSON.stringify(state));
   }
 
   private collectExpandedIds(nodes: TreeStateNode[]): string[] {
@@ -218,12 +298,16 @@ export class NotesTreeStore {
   private expandParentsInTree(
     nodes: TreeStateNode[],
     parentId: string,
-  ): { nodes: TreeStateNode[]; found: boolean } {
+  ): { nodes: TreeStateNode[]; found: boolean; newlyExpandedIds: string[] } {
     let found = false;
+    const newlyExpandedIds: string[] = [];
 
     const nextNodes = nodes.map((node) => {
       if (node.id === parentId) {
         found = true;
+        if (!node.expanded) {
+          newlyExpandedIds.push(node.id);
+        }
         return { ...node, expanded: true };
       }
 
@@ -231,6 +315,10 @@ export class NotesTreeStore {
         const result = this.expandParentsInTree(node.children, parentId);
         if (result.found) {
           found = true;
+          newlyExpandedIds.push(...result.newlyExpandedIds);
+          if (!node.expanded) {
+            newlyExpandedIds.push(node.id);
+          }
         }
 
         return {
@@ -243,7 +331,7 @@ export class NotesTreeStore {
       return node;
     });
 
-    return { nodes: nextNodes, found };
+    return { nodes: nextNodes, found, newlyExpandedIds };
   }
 
   private findNodeByIdInTree(id: string, nodes: TreeStateNode[]): TreeStateNode | null {

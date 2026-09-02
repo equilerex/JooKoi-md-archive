@@ -22,6 +22,7 @@ Browser (URL) -> Angular Router -> NotesPageComponent -> NotesTreeStore (Signals
 
 - **Path determinism**: folder and document names can't collide with a sibling under the same parent (folder `foo` vs document `foo.md`). That's what keeps deep-linking reliable. See `API_EDGE_CASES.md` (this folder) for the full edge-case spec.
 - **Single-user POC**: auth is intentionally minimal.
+- **The app never encrypts.** `CryptoService.encrypt` is used only to obfuscate URL path segments. Note ciphertext is produced outside the app, by the standalone `encrypt-util.html` at repo root, and pasted into the editor. A document's `encrypted` flag therefore means "stored content is ciphertext, decrypt before rendering", never "encrypt this for me". The upside is that the API never receives plaintext for an encrypted note — preserve that if this is ever revisited. Both sides are XOR-against-the-username plus base64url, which is obfuscation against shoulder-surfing and browser history, not confidentiality: the key is the login name. `encrypt-util.html` must stay algorithm-identical to `CryptoService` or pasted ciphertext stops round-tripping.
 - **Local persistence**: no external DB service, just a SQLite file on disk via `node:sqlite`. Needs `engines.node >=23.4`, or `--experimental-sqlite` below that.
 - **Not Nx**: `package.json` has `"workspaces": ["web", "api"]`. Each workspace owns its own deps, scripts, lint, and test config independently.
 

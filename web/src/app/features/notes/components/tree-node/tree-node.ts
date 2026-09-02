@@ -48,7 +48,7 @@ import { TreeStateNode } from '../../models/notes.models';
         mat-icon-button
         class="jo-tree-node__menu-btn"
         [matMenuTriggerFor]="nodeMenu"
-        (click)="$event.stopPropagation()"
+        (click)="onMenuClick($event)"
         aria-label="Node actions"
       >
         <mat-icon>more_vert</mat-icon>
@@ -125,14 +125,37 @@ export class TreeNode {
     return `/notes/${encodedSegments.join('/')}`;
   });
 
+  /**
+   * True when the user asked the browser to handle the link itself - new tab,
+   * new window, download. Those must fall through to the real `href` so the
+   * row keeps working as an ordinary link.
+   */
+  private isNativeNavigation(event: MouseEvent): boolean {
+    return (
+      event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button === 1
+    );
+  }
+
   protected onLinkClick(event: MouseEvent): void {
-    if (event.ctrlKey || event.metaKey || event.button === 1) {
+    if (this.isNativeNavigation(event)) {
       return;
     }
     event.preventDefault();
   }
 
   protected onItemClick(event: MouseEvent): void {
+    // This div sits inside the anchor. Returning without stopping propagation
+    // lets the event reach `onLinkClick`, which leaves the native navigation
+    // alone for modified clicks.
+    if (this.isNativeNavigation(event)) {
+      return;
+    }
+
+    // preventDefault must happen HERE, not only in `onLinkClick`: stopPropagation
+    // below keeps the event from ever reaching the anchor's handler, and stopping
+    // propagation does not by itself cancel the link's default navigation. Without
+    // this the browser does a full page load on every row click.
+    event.preventDefault();
     event.stopPropagation();
 
     if (this.node().type === 'folder') {
@@ -143,8 +166,16 @@ export class TreeNode {
   }
 
   protected onToggleClick(event: MouseEvent): void {
+    // The chevron only expands/collapses - it never navigates, modifiers included.
+    event.preventDefault();
     event.stopPropagation();
     this.toggle.emit(this.node());
+  }
+
+  /** The row-actions menu must not trigger the surrounding link. */
+  protected onMenuClick(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   protected onDragStart(event: DragEvent): void {

@@ -12,7 +12,8 @@ export class CryptoService {
     if (!this.key) {
       return plaintext;
     }
-    return btoa(unescape(encodeURIComponent(this.xor(plaintext, this.key))));
+    const base64 = btoa(unescape(encodeURIComponent(this.xor(plaintext, this.key))));
+    return this.toBase64Url(base64);
   }
 
   decrypt(ciphertext: string): string {
@@ -20,10 +21,27 @@ export class CryptoService {
       return ciphertext;
     }
     try {
-      return this.xor(decodeURIComponent(escape(atob(ciphertext))), this.key);
+      return this.xor(decodeURIComponent(escape(atob(this.fromBase64Url(ciphertext)))), this.key);
     } catch {
       return ciphertext;
     }
+  }
+
+  private toBase64Url(base64: string): string {
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  private fromBase64Url(value: string): string {
+    let base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+    const remainder = base64.length % 4;
+    if (remainder === 2) {
+      base64 += '==';
+    } else if (remainder === 3) {
+      base64 += '=';
+    } else if (remainder === 1) {
+      // Invalid length for base64; leave as-is so atob throws and decrypt() falls back.
+    }
+    return base64;
   }
 
   encryptSegment(segment: string): string {
@@ -39,16 +57,6 @@ export class CryptoService {
 
   isEncryptedSegment(segment: string): boolean {
     return segment.startsWith('e:');
-  }
-
-  isLikelyEncrypted(text: string): boolean {
-    if (!text || text.length === 0) return false;
-    try {
-      atob(text);
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   private xor(input: string, key: string): string {

@@ -44,6 +44,11 @@ export class MarkdownService {
   sanitizeFilename(title: string): string {
     return title
       .toLowerCase()
+      // Decompose accented characters and drop the combining marks, so "Märkmed"
+      // becomes "markmed" rather than "m-rkmed". Without this every non-ASCII
+      // letter is stripped below and turns into a separator.
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
   }
