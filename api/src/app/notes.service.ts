@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   CreateDocumentRequest,
   CreateFolderRequest,
@@ -11,71 +6,42 @@ import {
   SearchResult,
   TreeNode,
 } from '@shared/models';
-import { Repository } from 'typeorm';
-import { DocumentEntity } from './entities/document.entity';
-import { FolderEntity } from './entities/folder.entity';
+import { SqliteDb, nowUtc, parseUtc, withTransaction } from './database.provider';
+
+interface FolderRow {
+  id: string;
+  userId: string;
+  name: string;
+  parentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface DocumentRow {
+  id: string;
+  userId: string;
+  name: string;
+  folderId: string | null;
+  content: string;
+  encrypted: 0 | 1;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function newId(): string {
+  return crypto.randomUUID();
+}
 
 @Injectable()
 export class NotesService {
-  constructor(
-    @InjectRepository(FolderEntity)
-    private readonly folderRepository: Repository<FolderEntity>,
-    @InjectRepository(DocumentEntity)
-    private readonly documentRepository: Repository<DocumentEntity>,
-  ) {}
+  constructor(private readonly db: SqliteDb) {}
 
   async getTree(userId: string): Promise<TreeNode[]> {
-    const [folders, documents] = await Promise.all([
-      this.folderRepository.find({ where: { userId }, order: { name: 'ASC' } }),
-      this.documentRepository.find({ where: { userId }, order: { name: 'ASC' } }),
-    ]);
-
-    const nodes = new Map<string, TreeNode>();
-    const roots: TreeNode[] = [];
-
-    for (const folder of folders) {
-      nodes.set(folder.id, {
-        id: folder.id,
-        name: folder.name,
-        type: 'folder',
-        parentId: folder.parentId,
-        createdAt: folder.createdAt.toISOString(),
-        updatedAt: folder.updatedAt.toISOString(),
-        children: [],
-      });
-    }
-
-    for (const folderNode of nodes.values()) {
-      if (folderNode.parentId && nodes.has(folderNode.parentId)) {
-        nodes.get(folderNode.parentId)!.children!.push(folderNode);
-      } else {
-        roots.push(folderNode);
-      }
-    }
-
-    for (const document of documents) {
-      const node: TreeNode = {
-        id: document.id,
-        name: document.name,
-        type: 'document',
-        parentId: document.folderId,
-        createdAt: document.createdAt.toISOString(),
-        updatedAt: document.updatedAt.toISOString(),
-      };
-
-      if (document.folderId && nodes.has(document.folderId)) {
-        nodes.get(document.folderId)!.children!.push(node);
-      } else {
-        roots.push(node);
-      }
-    }
-
-    this.sortTree(roots);
-    return roots;
+    return this.getTreeSync(userId);
   }
 
   async getDocument(id: string, userId: string): Promise<DocumentDetail> {
-    const document = await this.documentRepository.findOneBy({ id, userId });
+    const document = this.findDocumentById(id, userId);
     if (!document) {
       throw new NotFoundException('Document not found');
     }
@@ -84,178 +50,215 @@ export class NotesService {
   }
 
   async createFolder(input: CreateFolderRequest, userId: string): Promise<TreeNode> {
-    const name = input.name.trim();
-    await this.ensureParentFolderExists(input.parentId, userId);
-    await this.ensureFolderNameAvailable(input.parentId, name, undefined, userId);
-    await this.ensureFolderPathNameAvailable(input.parentId, name, undefined, userId);
+    return withTransaction(this.db.conn, () => {
+      const name = input.name.trim();
+      const parentId = input.parentId ?? null;
+      this.ensureParentFolderExistsSync(parentId, userId);
+      this.ensureFolderNameAvailableSync(parentId, name, undefined, userId);
+      this.ensureFolderPathNameAvailableSync(parentId, name, undefined, userId);
 
-    const folder = this.folderRepository.create({
-      name,
-      parentId: input.parentId,
-      userId,
+      const now = nowUtc();
+      const folder: FolderRow = {
+        id: newId(),
+        userId,
+        name,
+        parentId,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      this.db.conn
+        .prepare(
+          'INSERT INTO folders (id, userId, name, parentId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)',
+        )
+        .run(folder.id, folder.userId, folder.name, folder.parentId, folder.createdAt, folder.updatedAt);
+
+      return this.toFolderTreeNode(folder);
     });
-    const saved = await this.folderRepository.save(folder);
-
-    return {
-      id: saved.id,
-      name: saved.name,
-      type: 'folder',
-      parentId: saved.parentId,
-      createdAt: saved.createdAt.toISOString(),
-      updatedAt: saved.updatedAt.toISOString(),
-      children: [],
-    };
   }
 
   async createDocument(input: CreateDocumentRequest, userId: string): Promise<DocumentDetail> {
-    const name = input.name.trim();
-    this.ensureMarkdownName(name);
-    await this.ensureParentFolderExists(input.folderId, userId);
-    await this.ensureDocumentNameAvailable(input.folderId, name, undefined, userId);
-    await this.ensureDocumentPathNameAvailable(input.folderId, name, undefined, userId);
+    return withTransaction(this.db.conn, () => {
+      const name = input.name.trim();
+      this.ensureMarkdownName(name);
+      const folderId = input.folderId ?? null;
+      this.ensureParentFolderExistsSync(folderId, userId);
+      this.ensureDocumentNameAvailableSync(folderId, name, undefined, userId);
+      this.ensureDocumentPathNameAvailableSync(folderId, name, undefined, userId);
 
-    const document = this.documentRepository.create({
-      name,
-      folderId: input.folderId,
-      content: input.content ?? '',
-      encrypted: input.encrypted ?? false,
-      userId,
+      const now = nowUtc();
+      const document: DocumentRow = {
+        id: newId(),
+        userId,
+        name,
+        folderId,
+        content: input.content ?? '',
+        encrypted: input.encrypted ? 1 : 0,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      this.db.conn
+        .prepare(
+          'INSERT INTO documents (id, userId, name, folderId, content, encrypted, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          document.id,
+          document.userId,
+          document.name,
+          document.folderId,
+          document.content,
+          document.encrypted,
+          document.createdAt,
+          document.updatedAt,
+        );
+
+      return this.toDocumentDetail(document);
     });
-    const saved = await this.documentRepository.save(document);
-
-    return this.toDocumentDetail(saved);
   }
 
   async renameFolder(id: string, name: string, userId: string): Promise<TreeNode> {
-    const folder = await this.folderRepository.findOneBy({ id, userId });
-    if (!folder) {
-      throw new NotFoundException('Folder not found');
-    }
+    return withTransaction(this.db.conn, () => {
+      const folder = this.findFolderById(id, userId);
+      if (!folder) {
+        throw new NotFoundException('Folder not found');
+      }
 
-    const nextName = name.trim();
-    await this.ensureFolderNameAvailable(folder.parentId, nextName, folder.id, userId);
-    await this.ensureFolderPathNameAvailable(folder.parentId, nextName, folder.id, userId);
-    folder.name = nextName;
-    const saved = await this.folderRepository.save(folder);
+      const nextName = name.trim();
+      this.ensureFolderNameAvailableSync(folder.parentId, nextName, folder.id, userId);
+      this.ensureFolderPathNameAvailableSync(folder.parentId, nextName, folder.id, userId);
 
-    return {
-      id: saved.id,
-      name: saved.name,
-      type: 'folder',
-      parentId: saved.parentId,
-      createdAt: saved.createdAt.toISOString(),
-      updatedAt: saved.updatedAt.toISOString(),
-      children: [],
-    };
+      const updatedAt = nowUtc();
+      this.db.conn
+        .prepare('UPDATE folders SET name = ?, updatedAt = ? WHERE id = ? AND userId = ?')
+        .run(nextName, updatedAt, id, userId);
+
+      return this.toFolderTreeNode({ ...folder, name: nextName, updatedAt });
+    });
   }
 
   async renameDocument(id: string, name: string, userId: string): Promise<DocumentDetail> {
-    const document = await this.documentRepository.findOneBy({ id, userId });
-    if (!document) {
-      throw new NotFoundException('Document not found');
-    }
+    return withTransaction(this.db.conn, () => {
+      const document = this.findDocumentById(id, userId);
+      if (!document) {
+        throw new NotFoundException('Document not found');
+      }
 
-    const nextName = name.trim();
-    this.ensureMarkdownName(nextName);
-    await this.ensureDocumentNameAvailable(document.folderId, nextName, document.id, userId);
-    await this.ensureDocumentPathNameAvailable(document.folderId, nextName, document.id, userId);
-    document.name = nextName;
-    const saved = await this.documentRepository.save(document);
+      const nextName = name.trim();
+      this.ensureMarkdownName(nextName);
+      this.ensureDocumentNameAvailableSync(document.folderId, nextName, document.id, userId);
+      this.ensureDocumentPathNameAvailableSync(document.folderId, nextName, document.id, userId);
 
-    return this.toDocumentDetail(saved);
+      const updatedAt = nowUtc();
+      this.db.conn
+        .prepare('UPDATE documents SET name = ?, updatedAt = ? WHERE id = ? AND userId = ?')
+        .run(nextName, updatedAt, id, userId);
+
+      return this.toDocumentDetail({ ...document, name: nextName, updatedAt });
+    });
   }
 
   async moveFolder(id: string, parentId: string | null, userId: string): Promise<TreeNode> {
-    const folder = await this.folderRepository.findOneBy({ id, userId });
-    if (!folder) {
-      throw new NotFoundException('Folder not found');
-    }
-
-    if (parentId === id) {
-      throw new BadRequestException('Cannot move a folder into itself');
-    }
-
-    await this.ensureParentFolderExists(parentId, userId);
-
-    if (parentId) {
-      const descendantIds = await this.collectFolderIds(id, userId);
-      if (descendantIds.includes(parentId)) {
-        throw new BadRequestException('Cannot move a folder into its own descendant');
+    return withTransaction(this.db.conn, () => {
+      const folder = this.findFolderById(id, userId);
+      if (!folder) {
+        throw new NotFoundException('Folder not found');
       }
-    }
 
-    await this.ensureFolderNameAvailable(parentId, folder.name, folder.id, userId);
-    await this.ensureFolderPathNameAvailable(parentId, folder.name, undefined, userId);
+      if (parentId === id) {
+        throw new BadRequestException('Cannot move a folder into itself');
+      }
 
-    folder.parentId = parentId;
-    const saved = await this.folderRepository.save(folder);
+      this.ensureParentFolderExistsSync(parentId, userId);
 
-    return {
-      id: saved.id,
-      name: saved.name,
-      type: 'folder',
-      parentId: saved.parentId,
-      createdAt: saved.createdAt.toISOString(),
-      updatedAt: saved.updatedAt.toISOString(),
-      children: [],
-    };
+      if (parentId) {
+        const descendantIds = this.collectFolderIdsSync(id, userId);
+        if (descendantIds.includes(parentId)) {
+          throw new BadRequestException('Cannot move a folder into its own descendant');
+        }
+      }
+
+      this.ensureFolderNameAvailableSync(parentId, folder.name, folder.id, userId);
+      this.ensureFolderPathNameAvailableSync(parentId, folder.name, undefined, userId);
+
+      const updatedAt = nowUtc();
+      this.db.conn
+        .prepare('UPDATE folders SET parentId = ?, updatedAt = ? WHERE id = ? AND userId = ?')
+        .run(parentId, updatedAt, id, userId);
+
+      return this.toFolderTreeNode({ ...folder, parentId, updatedAt });
+    });
   }
 
   async moveDocument(id: string, folderId: string | null, userId: string): Promise<DocumentDetail> {
-    const document = await this.documentRepository.findOneBy({ id, userId });
-    if (!document) {
-      throw new NotFoundException('Document not found');
-    }
+    return withTransaction(this.db.conn, () => {
+      const document = this.findDocumentById(id, userId);
+      if (!document) {
+        throw new NotFoundException('Document not found');
+      }
 
-    await this.ensureParentFolderExists(folderId, userId);
-    await this.ensureDocumentNameAvailable(folderId, document.name, document.id, userId);
-    await this.ensureDocumentPathNameAvailable(folderId, document.name, undefined, userId);
+      this.ensureParentFolderExistsSync(folderId, userId);
+      this.ensureDocumentNameAvailableSync(folderId, document.name, document.id, userId);
+      this.ensureDocumentPathNameAvailableSync(folderId, document.name, undefined, userId);
 
-    document.folderId = folderId;
-    const saved = await this.documentRepository.save(document);
+      const updatedAt = nowUtc();
+      this.db.conn
+        .prepare('UPDATE documents SET folderId = ?, updatedAt = ? WHERE id = ? AND userId = ?')
+        .run(folderId, updatedAt, id, userId);
 
-    return this.toDocumentDetail(saved);
+      return this.toDocumentDetail({ ...document, folderId, updatedAt });
+    });
   }
 
-  async updateDocument(id: string, content: string, userId: string, encrypted?: boolean): Promise<DocumentDetail> {
-    const document = await this.documentRepository.findOneBy({ id, userId });
-    if (!document) {
-      throw new NotFoundException('Document not found');
-    }
+  async updateDocument(
+    id: string,
+    content: string,
+    userId: string,
+    encrypted?: boolean,
+  ): Promise<DocumentDetail> {
+    return withTransaction(this.db.conn, () => {
+      const document = this.findDocumentById(id, userId);
+      if (!document) {
+        throw new NotFoundException('Document not found');
+      }
 
-    document.content = content;
-    if (encrypted !== undefined) {
-      document.encrypted = encrypted;
-    }
-    const saved = await this.documentRepository.save(document);
-    return this.toDocumentDetail(saved);
+      const nextEncrypted = encrypted !== undefined ? (encrypted ? 1 : 0) : document.encrypted;
+      const updatedAt = nowUtc();
+      this.db.conn
+        .prepare('UPDATE documents SET content = ?, encrypted = ?, updatedAt = ? WHERE id = ? AND userId = ?')
+        .run(content, nextEncrypted, updatedAt, id, userId);
+
+      return this.toDocumentDetail({ ...document, content, encrypted: nextEncrypted, updatedAt });
+    });
   }
 
   async deleteDocument(id: string, userId: string): Promise<void> {
-    const result = await this.documentRepository.delete({ id, userId });
-    if (!result.affected) {
-      throw new NotFoundException('Document not found');
-    }
+    withTransaction(this.db.conn, () => {
+      const result = this.db.conn.prepare('DELETE FROM documents WHERE id = ? AND userId = ?').run(id, userId);
+      if (!result.changes) {
+        throw new NotFoundException('Document not found');
+      }
+    });
   }
 
   async deleteFolder(id: string, userId: string): Promise<void> {
-    const folder = await this.folderRepository.findOneBy({ id, userId });
-    if (!folder) {
-      throw new NotFoundException('Folder not found');
-    }
+    withTransaction(this.db.conn, () => {
+      const folder = this.findFolderById(id, userId);
+      if (!folder) {
+        throw new NotFoundException('Folder not found');
+      }
 
-    const folderIds = await this.collectFolderIds(id, userId);
-    await this.documentRepository
-      .createQueryBuilder()
-      .delete()
-      .where('userId = :userId AND folderId IN (:...folderIds)', { userId, folderIds })
-      .execute();
+      const folderIds = this.collectFolderIdsSync(id, userId);
+      const placeholders = folderIds.map(() => '?').join(', ');
 
-    await this.folderRepository
-      .createQueryBuilder()
-      .delete()
-      .where('userId = :userId AND id IN (:...folderIds)', { userId, folderIds })
-      .execute();
+      this.db.conn
+        .prepare(`DELETE FROM documents WHERE userId = ? AND folderId IN (${placeholders})`)
+        .run(userId, ...folderIds);
+
+      this.db.conn
+        .prepare(`DELETE FROM folders WHERE userId = ? AND id IN (${placeholders})`)
+        .run(userId, ...folderIds);
+    });
   }
 
   async search(query: string, userId: string): Promise<SearchResult[]> {
@@ -264,21 +267,19 @@ export class NotesService {
       return [];
     }
 
-    const [folders, documents] = await Promise.all([
-      this.folderRepository
-        .createQueryBuilder('folder')
-        .where('folder.userId = :userId AND LOWER(folder.name) LIKE LOWER(:query)', { userId, query: `%${term}%` })
-        .orderBy('folder.name', 'ASC')
-        .limit(10)
-        .getMany(),
-      this.documentRepository
-        .createQueryBuilder('document')
-        .where('document.userId = :userId AND LOWER(document.name) LIKE LOWER(:query)', { userId, query: `%${term}%` })
-        .orWhere('document.userId = :userId AND LOWER(document.content) LIKE LOWER(:query)', { userId, query: `%${term}%` })
-        .orderBy('document.updatedAt', 'DESC')
-        .limit(10)
-        .getMany(),
-    ]);
+    const like = `%${term}%`;
+
+    const folders = this.db.conn
+      .prepare(
+        'SELECT * FROM folders WHERE userId = ? AND LOWER(name) LIKE LOWER(?) ORDER BY name ASC LIMIT 10',
+      )
+      .all(userId, like) as unknown as FolderRow[];
+
+    const documents = this.db.conn
+      .prepare(
+        'SELECT * FROM documents WHERE userId = ? AND (LOWER(name) LIKE LOWER(?) OR LOWER(content) LIKE LOWER(?)) ORDER BY updatedAt DESC LIMIT 10',
+      )
+      .all(userId, like, like) as unknown as DocumentRow[];
 
     return [
       ...folders.map<SearchResult>((folder) => ({
@@ -297,36 +298,88 @@ export class NotesService {
     ];
   }
 
-  private async ensureParentFolderExists(parentId: string | null, userId: string): Promise<void> {
+  private getTreeSync(userId: string): TreeNode[] {
+    const folders = this.db.conn
+      .prepare('SELECT * FROM folders WHERE userId = ? ORDER BY name ASC')
+      .all(userId) as unknown as FolderRow[];
+    const documents = this.db.conn
+      .prepare('SELECT * FROM documents WHERE userId = ? ORDER BY name ASC')
+      .all(userId) as unknown as DocumentRow[];
+
+    const nodes = new Map<string, TreeNode>();
+    const roots: TreeNode[] = [];
+
+    for (const folder of folders) {
+      nodes.set(folder.id, {
+        id: folder.id,
+        name: folder.name,
+        type: 'folder',
+        parentId: folder.parentId,
+        createdAt: parseUtc(folder.createdAt),
+        updatedAt: parseUtc(folder.updatedAt),
+        children: [],
+      });
+    }
+
+    for (const folderNode of nodes.values()) {
+      if (folderNode.parentId && nodes.has(folderNode.parentId)) {
+        nodes.get(folderNode.parentId)!.children!.push(folderNode);
+      } else {
+        roots.push(folderNode);
+      }
+    }
+
+    for (const document of documents) {
+      const node: TreeNode = {
+        id: document.id,
+        name: document.name,
+        type: 'document',
+        parentId: document.folderId,
+        createdAt: parseUtc(document.createdAt),
+        updatedAt: parseUtc(document.updatedAt),
+      };
+
+      if (document.folderId && nodes.has(document.folderId)) {
+        nodes.get(document.folderId)!.children!.push(node);
+      } else {
+        roots.push(node);
+      }
+    }
+
+    this.sortTree(roots);
+    return roots;
+  }
+
+  private ensureParentFolderExistsSync(parentId: string | null, userId: string): void {
     if (!parentId) {
       return;
     }
 
-    const folder = await this.folderRepository.findOneBy({ id: parentId, userId });
+    const folder = this.findFolderById(parentId, userId);
     if (!folder) {
       throw new NotFoundException('Parent folder not found');
     }
   }
 
-  private async ensureFolderNameAvailable(
+  private ensureFolderNameAvailableSync(
     parentId: string | null,
     name: string,
-    excludeId?: string,
-    userId?: string,
-  ): Promise<void> {
-    const existing = await this.findFolderByParentAndName(parentId, name, userId);
+    excludeId: string | undefined,
+    userId: string,
+  ): void {
+    const existing = this.findFolderByParentAndName(parentId, name, userId);
     if (existing && existing.id !== excludeId) {
       throw new BadRequestException('A folder with this name already exists here');
     }
   }
 
-  private async ensureDocumentNameAvailable(
+  private ensureDocumentNameAvailableSync(
     folderId: string | null,
     name: string,
-    excludeId?: string,
-    userId?: string,
-  ): Promise<void> {
-    const existing = await this.findDocumentByFolderAndName(folderId, name, userId);
+    excludeId: string | undefined,
+    userId: string,
+  ): void {
+    const existing = this.findDocumentByFolderAndName(folderId, name, userId);
     if (existing && existing.id !== excludeId) {
       throw new BadRequestException('A document with this name already exists here');
     }
@@ -338,40 +391,38 @@ export class NotesService {
     }
   }
 
-  private async ensureFolderPathNameAvailable(
+  private ensureFolderPathNameAvailableSync(
     parentId: string | null,
     name: string,
-    excludeDocumentId?: string,
-    userId?: string,
-  ): Promise<void> {
-    const existingDocument = await this.findDocumentByFolderAndName(parentId, `${name}.md`, userId);
+    excludeDocumentId: string | undefined,
+    userId: string,
+  ): void {
+    const existingDocument = this.findDocumentByFolderAndName(parentId, `${name}.md`, userId);
     if (existingDocument && existingDocument.id !== excludeDocumentId) {
-      throw new BadRequestException(
-        'A document with the same path name already exists here',
-      );
+      throw new BadRequestException('A document with the same path name already exists here');
     }
   }
 
-  private async ensureDocumentPathNameAvailable(
+  private ensureDocumentPathNameAvailableSync(
     folderId: string | null,
     name: string,
-    excludeFolderId?: string,
-    userId?: string,
-  ): Promise<void> {
-    const existingFolder = await this.findFolderByParentAndName(
+    excludeFolderId: string | undefined,
+    userId: string,
+  ): void {
+    const existingFolder = this.findFolderByParentAndName(
       folderId,
       this.toDocumentPathSegment(name),
       userId,
     );
     if (existingFolder && existingFolder.id !== excludeFolderId) {
-      throw new BadRequestException(
-        'A folder with the same path name already exists here',
-      );
+      throw new BadRequestException('A folder with the same path name already exists here');
     }
   }
 
-  private async collectFolderIds(rootId: string, userId: string): Promise<string[]> {
-    const folders = await this.folderRepository.find({ where: { userId } });
+  private collectFolderIdsSync(rootId: string, userId: string): string[] {
+    const folders = this.db.conn
+      .prepare('SELECT * FROM folders WHERE userId = ?')
+      .all(userId) as unknown as FolderRow[];
     const childrenByParent = new Map<string | null, string[]>();
 
     for (const folder of folders) {
@@ -392,59 +443,77 @@ export class NotesService {
     return result;
   }
 
-  private async findFolderByParentAndName(
+  private findFolderById(id: string, userId: string): FolderRow | null {
+    return (
+      (this.db.conn.prepare('SELECT * FROM folders WHERE id = ? AND userId = ?').get(id, userId) as
+        | FolderRow
+        | undefined) ?? null
+    );
+  }
+
+  private findDocumentById(id: string, userId: string): DocumentRow | null {
+    return (
+      (this.db.conn.prepare('SELECT * FROM documents WHERE id = ? AND userId = ?').get(id, userId) as
+        | DocumentRow
+        | undefined) ?? null
+    );
+  }
+
+  private findFolderByParentAndName(
     parentId: string | null,
     name: string,
-    userId?: string,
-  ): Promise<FolderEntity | null> {
-    const query = this.folderRepository
-      .createQueryBuilder('folder')
-      .where('folder.name = :name', { name });
+    userId: string,
+  ): FolderRow | null {
+    const row =
+      parentId === null
+        ? this.db.conn
+            .prepare('SELECT * FROM folders WHERE userId = ? AND parentId IS NULL AND name = ?')
+            .get(userId, name)
+        : this.db.conn
+            .prepare('SELECT * FROM folders WHERE userId = ? AND parentId = ? AND name = ?')
+            .get(userId, parentId, name);
 
-    if (userId) {
-      query.andWhere('folder.userId = :userId', { userId });
-    }
-
-    if (parentId === null) {
-      query.andWhere('folder.parentId IS NULL');
-    } else {
-      query.andWhere('folder.parentId = :parentId', { parentId });
-    }
-
-    return query.getOne();
+    return (row as FolderRow | undefined) ?? null;
   }
 
-  private async findDocumentByFolderAndName(
+  private findDocumentByFolderAndName(
     folderId: string | null,
     name: string,
-    userId?: string,
-  ): Promise<DocumentEntity | null> {
-    const query = this.documentRepository
-      .createQueryBuilder('document')
-      .where('document.name = :name', { name });
+    userId: string,
+  ): DocumentRow | null {
+    const row =
+      folderId === null
+        ? this.db.conn
+            .prepare('SELECT * FROM documents WHERE userId = ? AND folderId IS NULL AND name = ?')
+            .get(userId, name)
+        : this.db.conn
+            .prepare('SELECT * FROM documents WHERE userId = ? AND folderId = ? AND name = ?')
+            .get(userId, folderId, name);
 
-    if (userId) {
-      query.andWhere('document.userId = :userId', { userId });
-    }
-
-    if (folderId === null) {
-      query.andWhere('document.folderId IS NULL');
-    } else {
-      query.andWhere('document.folderId = :folderId', { folderId });
-    }
-
-    return query.getOne();
+    return (row as DocumentRow | undefined) ?? null;
   }
 
-  private toDocumentDetail(document: DocumentEntity): DocumentDetail {
+  private toFolderTreeNode(folder: FolderRow): TreeNode {
+    return {
+      id: folder.id,
+      name: folder.name,
+      type: 'folder',
+      parentId: folder.parentId,
+      createdAt: parseUtc(folder.createdAt),
+      updatedAt: parseUtc(folder.updatedAt),
+      children: [],
+    };
+  }
+
+  private toDocumentDetail(document: DocumentRow): DocumentDetail {
     return {
       id: document.id,
       name: document.name,
       folderId: document.folderId,
       content: document.content,
-      encrypted: document.encrypted,
-      createdAt: document.createdAt.toISOString(),
-      updatedAt: document.updatedAt.toISOString(),
+      encrypted: !!document.encrypted,
+      createdAt: parseUtc(document.createdAt),
+      updatedAt: parseUtc(document.updatedAt),
     };
   }
 

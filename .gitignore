@@ -26,7 +26,19 @@ data/
 
 nginx.jookoi.com.test.conf
 DEPLOYMENT_SPECIFIC.md
+encrypt-util.html
 
 # MemPalace per-project files (issue #185)
 mempalace.yaml
 entities.json
+
+.history/*
+.idea/*
+.ai/*
+.claude/*
+.vscode/*
+
+# LLM tooling caches (cheap to regenerate, see AGENTS.md)
+.DS_Store
+.tokensave/
+graphify-out/

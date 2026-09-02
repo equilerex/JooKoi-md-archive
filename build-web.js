@@ -29,7 +29,7 @@ const baseHref = env.APP_BASE_HREF || '/';
 console.log(`Building web app with base-href: ${baseHref}`);
 
 try {
-  execSync(`npx nx build web --configuration=production --base-href=${baseHref}`, {
+  execSync(`npx ng build --configuration=production --base-href=${baseHref}`, {
     stdio: 'inherit',
     shell: true
   });

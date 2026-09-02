@@ -1,12 +1,14 @@
-import nx from '@nx/eslint-plugin';
-import baseConfig from '../eslint.config.mjs';
+import tseslint from 'typescript-eslint';
+import angular from 'angular-eslint';
 
-export default [
-  ...nx.configs['flat/angular'],
-  ...nx.configs['flat/angular-template'],
-  ...baseConfig,
+export default tseslint.config(
   {
     files: ['**/*.ts'],
+    extends: [
+      ...tseslint.configs.recommended,
+      ...angular.configs.tsRecommended,
+    ],
+    processor: angular.processInlineTemplates,
     rules: {
       '@angular-eslint/directive-selector': [
         'error',
@@ -28,7 +30,7 @@ export default [
   },
   {
     files: ['**/*.html'],
-    // Override or add rules here
+    extends: [...angular.configs.templateRecommended],
     rules: {},
   },
-];
+);

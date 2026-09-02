@@ -10,11 +10,9 @@ This document describes the intended production setup on an Ubuntu server such a
 
 ## Target URLs
 
-- App: `https://example.com/test`
-- API: `https://example.com/test/api`
-
-The Angular app is built using the `APP_BASE_HREF` value defined in your local `.env` file (defaults to `/` if not set).
-
+- App: `https://example.com`
+- API: `https://example.com/api`
+ 
 ## Server Layout
 
 Recommended paths:

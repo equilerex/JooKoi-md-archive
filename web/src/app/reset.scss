@@ -126,6 +126,30 @@ input, button, textarea, select {
   font: inherit;
 }
 
+/* Android Chrome force-dark can invert input backgrounds to near-black
+   while text stays dark, making typed text unreadable. Pin explicit
+   colors so inputs never fall back to the UA/force-dark stylesheet. */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea,
+select {
+  background-color: var(--color-background, #fff);
+  color: var(--color-text, #212121);
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-text, #212121);
+  box-shadow: 0 0 0px 1000px var(--color-background, #fff) inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 /* Strips OS-level native styling from interactive elements.
    Leaves border and background intact, providing accessibility by default.
    Visual styling should be handled by the design system. */

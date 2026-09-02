@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "outDir": "dist",
     "paths": {
-      "@shared/models": ["./shared/src/models.ts"]
+      "@shared/models": ["./shared/src/models.d.ts"]
     }
   }
 }

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "angular-material": {
+      "source": "pluginagentmarketplace/custom-plugin-angular",
+      "sourceType": "github",
+      "skillPath": "skills/angular-material/SKILL.md",
+      "computedHash": "819b6e2f51a7778777f40c9f12653dbdc46189a917feac73455ec69fb5c83822"
+    }
+  }
+}

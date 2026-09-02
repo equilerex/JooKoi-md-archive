@@ -1,197 +1,88 @@
 # JooKoi md archive
 
-A simple Markdown knowledge (folder) tree POC built with:
+A markdown notes archive with a folder tree, inline editing, search, and path-based deep links. Angular 21 (standalone components) frontend, NestJS 11 backend, SQLite storage.
 
-- Angular 21 standalone components
-- NestJS 11
-- SQLite
-- Nx workspace tooling
+## What it does
 
-The app provides a folder and markdown document tree, inline markdown editing, search, and path-based deep links.
+Folders and documents live in SQLite. The Nest API handles tree, document, folder, rename, delete, and search operations. The Angular UI browses and edits the tree, with deep links into any folder or document and a minimal single-user login gate.
 
-## What It Does
+## URLs
 
-- Stores folders and markdown documents in SQLite
-- Exposes a Nest API for tree, document, folder, rename, delete, and search operations
-- Renders a browser UI for browsing and editing the tree
-- Supports deep links to folders and documents
-- Uses a simple single-user login flow for protected access
-
-## URL Model
-
-The frontend uses Angular routing under:
-
-- `/notes/...`
-
-Examples:
+Frontend routes live under `/notes/...`:
 
 - `/notes` opens the default folder
 - `/notes/folder/subfolder` opens a nested folder
-- `/notes/folder/subfolder/docname` opens a document
+- `/notes/folder/subfolder/docname` opens a document (no `.md` suffix in the URL)
 
-Document URLs do not include `.md`.
+A folder matches by exact name, a document by filename minus `.md`. To keep that resolution unambiguous, the backend blocks a folder and a document from sharing a name in the same parent (folder `foo` next to document `foo.md` isn't allowed).
 
-Path resolution rules:
+## Default folder
 
-- folders match their exact name
-- documents match their filename without the `.md` suffix
+The app treats a folder named `A bucket` as the landing folder. If you open the app with no deeper path and `A bucket` doesn't exist yet, the frontend creates it.
 
-To keep path resolution deterministic, the backend blocks same-parent collisions such as:
+## Auth
 
-- folder `foo`
-- document `foo.md`
+Single hardcoded user, verified server-side (`user` / `pass`). The frontend stores the returned token in `localStorage`, so login persists across reloads until logout or invalidation. This is POC-grade auth, not multi-user or production-grade.
 
-inside the same parent folder.
-
-## Default Folder
-
-The app treats a folder named `A bucket` as the default landing folder.
-
-If the user opens the app without a deeper path and `A bucket` does not exist yet, the frontend creates it automatically.
-
-## Authentication
-
-The app currently uses a minimal single-user server-side login.
-
-Current credentials:
-
-- username: `user`
-- password: `pass`
-
-Notes:
-
-- credentials are verified by the API, not the web bundle
-- the frontend stores the returned token in `localStorage`
-- login persists across browser reloads until logout or invalidation
-
-This is POC-grade authentication, not production-grade multi-user auth.
-
-## Project Structure
-
-Top-level structure:
+## Project structure
 
 - `web/` Angular frontend
-- `api/` Nest backend
-- `shared/` shared request/response models
+- `api/` NestJS backend
+- `shared/` shared request/response types
 - `data/` SQLite database and local runtime data
 - `DEPLOYMENT.md` production deployment notes
 
-Important frontend files:
+Key frontend files:
 
-- `web/src/app/app.ts`
-  Login shell and `router-outlet`
-- `web/src/app/app.routes.ts`
-  Angular route setup
-- `web/src/app/notes-page.component.ts`
-  Main notes workspace UI and route-driven selection logic
-- `web/src/app/notes-tree.store.ts`
-  Signal-based tree state
-- `web/src/app/auth.service.ts`
-  Token storage and login request
-- `web/src/app/auth.interceptor.ts`
-  Bearer token injection for API requests
+- `web/src/app/app.ts` login shell, `router-outlet`
+- `web/src/app/app.routes.ts` route setup
+- `web/src/app/notes-page.component.ts` main workspace UI, route-driven selection
+- `web/src/app/notes-tree.store.ts` signal-based tree state
+- `web/src/app/auth.service.ts` token storage, login request
+- `web/src/app/auth.interceptor.ts` bearer token injection
 
-Important backend files:
+Key backend files:
 
-- `api/src/app/notes.controller.ts`
-  Protected notes endpoints
-- `api/src/app/notes.service.ts`
-  Tree/document/folder logic and path collision validation
-- `api/src/app/auth.controller.ts`
-  Login endpoint
-- `api/src/app/auth.service.ts`
-  Token generation and verification
-- `api/src/app/auth.guard.ts`
-  API route protection
+- `api/src/app/notes.controller.ts` protected notes endpoints
+- `api/src/app/notes.service.ts` tree/document/folder logic, path collision checks
+- `api/src/app/auth.controller.ts` login endpoint
+- `api/src/app/auth.service.ts` token generation and verification
+- `api/src/app/auth.guard.ts` route protection
 
-## Local Development
+Full architecture and reasoning: [_architecture/architecture.md](_architecture/architecture.md).
 
-Install dependencies:
+## Local development
 
 ```bash
 npm install
+npm run start:api   # http://localhost:3000/api
+npm run start:web   # http://localhost:4200
 ```
 
-Start the API:
+## Build
 
 ```bash
-npm run start:api
-```
-
-Start the frontend:
-
-```bash
-npm run start:web
-```
-
-Typical local URLs:
-
-- frontend: `http://localhost:4200`
-- api: `http://localhost:3000/api`
-
-## Build Commands
-
-Build everything:
-
-```bash
-npm run build
-```
-
-Build production frontend:
-
-```bash
+npm run build              # everything
 npm run build:web:prod
-```
-
-Build production API:
-
-```bash
 npm run build:api:prod
 ```
 
-## Production Notes
+## Production
 
-The production frontend build is configured for deployment under:
+The production frontend build is configured for deployment under `/test/`, so `[base]/notes/...` for routes and `[base]/api` for the API. Server setup: [DEPLOYMENT.md](DEPLOYMENT.md).
 
-- `/test/`
+## Data storage
 
-Production assumptions:
-
-- app URL base: defined by `APP_BASE_HREF` in `.env` (e.g. `/test`)
-- frontend route base: `[base]/notes/...`
-- API base: `[base]/api`
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for the server setup.
-
-## Data Storage
-
-The backend stores data in SQLite.
-
-Local database path:
-
-- `data/notes.sqlite`
-
-For production, the API runtime directory must have a writable `data/` folder.
+SQLite at `data/notes.sqlite`. The API runtime directory needs a writable `data/` folder in production.
 
 ## Search
 
-Search is backend-driven.
+Backend-driven. The UI sends the query to the API and filters the visible tree down to matching items plus their ancestor folders.
 
-The UI sends the query to the API, and the frontend filters the visible tree based on the returned matching items and their ancestor folders.
+## Current POC constraints
 
-## Current POC Constraints
-
-- Single hardcoded user
-- SQLite only
-- No multi-user ownership model
+- Single hardcoded user, no multi-user ownership model
+- SQLite only, no production-grade concurrent access
 - No robust production auth/session management
 - No slug/history versioning for renamed paths
-- Path uniqueness depends on backend name collision rules
-
-## Deployment
-
-Deployment instructions are documented in:
-
-- [DEPLOYMENT.md](.\DEPLOYMENT.md)
-
- 
+- Path uniqueness depends entirely on the backend's collision rules

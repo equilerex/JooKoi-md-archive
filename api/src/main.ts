@@ -17,6 +17,8 @@ async function bootstrap() {
     }),
   );
 
+  app.enableShutdownHooks();
+
   const port = process.env.PORT || 3000;
   await app.listen(port);
 
